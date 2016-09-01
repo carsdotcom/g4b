@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+while (( "$#" )); do shift; done
+
+TUNDERLINE=$(tput sgr 0 1)
+TRED=$(tput setaf 1)
+TGREEN=$(tput setaf 2)
+TYELLOW=$(tput setaf 3)
+TBLUE=$(tput setaf 4)
+TRESET=$(tput sgr0)
+TCHECKMARK="\xe2\x9c\x93"
+TXMARK="\xe2\x9c\x95"
+
+clear
+printf "\n${TUNDERLINE}${TYELLOW}Running tests...${TRESET}\n" 
+
+bunt_describe(){
+    bunt_describe_text=$1" "
+}
+
+bunt_it(){
+    printf "\n  ${TBLUE}${bunt_describe_text}${1}${TRESET}\n"
+}
+
+bunt_printPass(){
+    local msg="$1"
+    while (( "$#" )); do shift; done
+    printf "    ${TGREEN}${TCHECKMARK}  $msg${TRESET}\n"
+}
+
+bunt_printFail(){
+    local msg="$1"
+    while (( "$#" )); do shift; done
+    printf "    ${TRED}${TXMARK}  $msg${TRESET}\n"
+}
+
+bunt_printResult(){
+    local msg="$1"
+    if [ $bunt_pass -gt 0 ]; then
+        bunt_printPass "$msg"
+    else
+        bunt_printFail "$msg"
+    fi
+}
+
+bunt_reset() {
+    unset bunt_when
+    unset bunt_then
+    unset bunt_pass
+}
+
+bunt_expectToExit() {
+    local code cmd msg
+    code="$1"
+    while (( "$#" )); do shift; done
+    IFS=% cmd=( "${bunt_when[@]}" )
+    if [ ${#cmd[@]} -gt 1 ]; then
+        msg="'${cmd[0]}' should return $code when called with $(printf "'%s' " "${cmd[@]:1}")"
+    else
+        msg="'${cmd[0]}' should return $code"
+    fi
+    "${cmd[@]}" > /dev/null 2>&1
+    if [ $? -eq $code ]; then
+       bunt_pass=1
+    else
+       bunt_pass=0
+    fi
+    bunt_printResult "$msg"
+    bunt_reset
+}
+
+bunt_expectOutputToMatch() {
+    local expected_output cmd msg cmd_output
+    expected_output="$1"
+    while (( "$#" )); do shift; done
+    IFS=% cmd=( "${bunt_when[@]}" )
+    if [ ${#cmd[@]} -gt 1 ]; then
+        msg="Output of '${cmd[0]}' should match '$expected_output' when called with $(printf "'%s' " "${cmd[@]:1}")"
+    else
+        msg="Output of '${cmd[0]}' should match '$expected_output'"
+    fi
+    cmd_output=$(${cmd[@]})
+    if [ -n "$( echo "$cmd_output" | grep -e "$expected_output" )" ]; then
+       bunt_pass=1
+    else
+       bunt_pass=0
+       msg+="\n     Expected to match '$expected_output' but actual was '$cmd_output'"
+    fi
+    bunt_printResult "$msg"
+    bunt_reset
+}
+
+bunt_expectOutputNotToMatch() {
+    local expected_output cmd msg cmd_output
+    expected_output="$1"
+    while (( "$#" )); do shift; done
+    IFS=% cmd=( "${bunt_when[@]}" )
+    if [ ${#cmd[@]} -gt 1 ]; then
+        msg="Output of '${cmd[0]}' should match '$expected_output' when called with $(printf "'%s' " "${cmd[@]:1}")"
+    else
+        msg="Output of '${cmd[0]}' should match '$expected_output'"
+    fi
+    cmd_output=$(${cmd[@]})
+    if [ -n "$( echo "$cmd_output" | grep -e "$expected_output" )" ]; then
+       bunt_pass=0
+       msg+="\n     Expected not to match '$expected_output' but actual was '$cmd_output'"
+    else
+       bunt_pass=1
+    fi
+    bunt_printResult "$msg"
+    bunt_reset
+}
+
+bunt_expectToHaveBeenCalled() {
+    local subject condition subject_cmd_name condition_cmd_name msg
+    while (( "$#" )); do shift; done
+    IFS=% subject=( "${bunt_then[@]}" )
+    IFS=% condition=( "${bunt_when[@]}" )
+    subject_cmd_name="${subject[0]}"
+    condition_cmd_name="${condition[0]}"
+    while (( "$#" )); do shift; done
+    if [ ${#subject[@]} -gt 1 ] && [ ${#condition[@]} -gt 1 ]; then
+        msg="'${subject_cmd_name}' should be called with $(printf "'%s' " "${subject[@]:1}")when ${condition_cmd_name} is called with $(printf "'%s' " "${condition[@]:1}")"
+    elif [ ${#subject[@]} -gt 1 ]; then
+        msg="'${subject_cmd_name}' should be called with $(printf "'%s' " "${subject[@]:1}")when ${condition_cmd_name} is called"
+    elif [ ${#condition[@]} -gt 1 ]; then
+        msg="'${subject_cmd_name}' should be called when ${condition_cmd_name} is called with $(printf "'%s' " "${condition[@]:1}")"
+    else
+        msg="'${subject_cmd_name}' should be called when ${condition_cmd_name} is called"
+    fi
+    bunt_spy() {
+        foo="$*"
+        bar="${subject[*]:1}"
+        if [ "$*" == "${subject[*]:1}" ]; then
+            bunt_pass=1
+        else
+            bunt_pass=0
+        fi
+    }
+
+    eval "$(echo "bunt_bkup_${subject_cmd_name}()"; declare -f ${subject_cmd_name} | tail -n +2)"
+    eval "${subject_cmd_name}() { bunt_spy \"\$@\"; }"
+    "${condition[@]}" > /dev/null 2>&1
+    bunt_printResult "$msg"
+    eval "$(echo "${subject_cmd_name}()"; declare -f bunt_bkup_${subject_cmd_name} | tail -n +2)"
+    bunt_reset
+}
+

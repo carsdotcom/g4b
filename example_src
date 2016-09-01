@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+testMe() {
+    if [ "$1" == "a b" ] && [ "$2" == "c" ]; then
+        echo "good"
+        echo "food"
+        return 0
+    else
+        echo "bad"
+        return 1
+    fi
+}
+
+callsTestMe() {
+    testMe "$2" "$1"
+}
+
+testMe2() {
+    echo "outputing poop"
+}
+

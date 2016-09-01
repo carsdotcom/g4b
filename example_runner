@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+source ./bunt
+source ./example_src
+source ./example_specs
+echo

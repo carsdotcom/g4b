@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+bunt_describe "testMe"
+
+    bunt_it "should exit 0 when it receives valid arguments"
+
+        bunt_when=(testMe "a b" "c")
+        bunt_expectToExit 0
+
+        bunt_when=(testMe "a" "z") # example of fail
+        bunt_expectToExit 0
+
+
+    bunt_it "should exit 1 when it receives bad arguments"
+
+        bunt_when=(testMe "z" "z")
+        bunt_expectToExit 1
+
+        bunt_when=(testMe "a b" "c") # example of fail
+        bunt_expectToExit 1
+
+        bunt_when=(testMe "a" "b" "c")
+        bunt_expectToExit 1
+
+
+    bunt_it "should pass the arguments but reverse them"
+
+        bunt_when=(callsTestMe "a b" "c")
+        bunt_then=(testMe "c" "a b")
+        bunt_expectToHaveBeenCalled
+
+        bunt_when=(callsTestMe "a b" "c") # example of fail
+        bunt_then=(testMe "a b" "c")
+        bunt_expectToHaveBeenCalled
+
+
+    bunt_it "should have desired output"
+
+        bunt_when=(testMe "a b" "c")
+        bunt_expectOutputToMatch "good"
+
+        bunt_when=(testMe "a b" "c")
+        bunt_expectOutputToMatch "^food"
+
+bunt_describe "testMe2"
+
+    bunt_it "should not output bad words"
+
+        bunt_when=(testMe2)
+        bunt_expectOutputNotToMatch "poop"
