@@ -1,50 +1,73 @@
 #!/usr/bin/env bash
 
-bunt_describe "testMe"
+describe "testMe"
 
-    bunt_it "should exit 0 when it receives valid arguments"
+    it "should exit 0 when it receives valid arguments"
 
-        bunt_when=(testMe "a b" "c")
-        bunt_expectToExit 0
+        when testMe is called with "a b" "c"
+        thenn exitWith 0
 
-        bunt_when=(testMe "a" "z") # example of fail
-        bunt_expectToExit 0
+        when testMe is called with "a b" "c"
+        thenn exitWith 0
 
-
-    bunt_it "should exit 1 when it receives bad arguments"
-
-        bunt_when=(testMe "z" "z")
-        bunt_expectToExit 1
-
-        bunt_when=(testMe "a b" "c") # example of fail
-        bunt_expectToExit 1
-
-        bunt_when=(testMe "a" "b" "c")
-        bunt_expectToExit 1
+        when testMe is called with "a" "z"
+        thenn exitWith 0 # will fail
 
 
-    bunt_it "should pass the arguments but reverse them"
+    it "should exit 1 when it receives bad arguments"
 
-        bunt_when=(callsTestMe "a b" "c")
-        bunt_then=(testMe "c" "a b")
-        bunt_expectToHaveBeenCalled
+        when testMe is called with "z" "z"
+        thenn exitWith 1
 
-        bunt_when=(callsTestMe "a b" "c") # example of fail
-        bunt_then=(testMe "a b" "c")
-        bunt_expectToHaveBeenCalled
+        when testMe is called with "a b" "c"
+        thenn exitWith 1 # will fail
+
+        when testMe is called with "a" "b" "c"
+        thenn exitWith 1
+
+describe "testMeWrapper"
+
+    it "should pass the arguments but reverse them"
+
+        when testMeWrapper is called with "a b" "c"
+        thenn testMe should be called with "c" "a b"
+
+        when testMeWrapper is called with "a b" "c"
+        thenn testMe should be called with "a b" "c" # will fail
 
 
-    bunt_it "should have desired output"
+    it "should have desired output"
 
-        bunt_when=(testMe "a b" "c")
-        bunt_expectOutputToMatch "good"
+        beforeEach() {
+            given "FOO=bar"
+            FOO="bar"
+        }
 
-        bunt_when=(testMe "a b" "c")
-        bunt_expectOutputToMatch "^food"
+        afterEach() {
+            unset FOO
+        }
 
-bunt_describe "testMe2"
+        when testMe is called with "a b" "c"
+        thenn output should match "bar"
 
-    bunt_it "should not output bad words"
+        when testMe is called with "a b" "c"
+        thenn output should match "foo" # will fail
 
-        bunt_when=(testMe2)
-        bunt_expectOutputNotToMatch "poop"
+describe "outputStuff"
+
+    it "should not output errors"
+
+        when outputStuff is called
+        thenn output should not match "error"
+
+        when outputStuff is called with "foo"
+        thenn output should not match "error" # will fail
+
+        when outputStuff is called with "multiline"
+        thenn output should match "foo"
+
+        when outputStuff is called with "multiline"
+        thenn output should not match "xyzzy"
+
+        when outputStuff is called with "multiline"
+        thenn output should match "xyzzy" # will fail

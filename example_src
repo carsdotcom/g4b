@@ -2,20 +2,25 @@
 
 testMe() {
     if [ "$1" == "a b" ] && [ "$2" == "c" ]; then
-        echo "good"
-        echo "food"
+        echo "$FOO"
         return 0
     else
-        echo "bad"
+        echo "error"
         return 1
     fi
 }
 
-callsTestMe() {
+testMeWrapper() {
     testMe "$2" "$1"
 }
 
-testMe2() {
-    echo "outputing poop"
+outputStuff() {
+    if [ -z "$1" ]; then
+        echo "success"
+    elif [ "$1" == "multiline" ]; then
+        printf "foo\nbar\nbam\nqux"
+    else
+        echo "error"
+    fi
 }
 
