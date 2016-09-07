@@ -2,4 +2,3 @@
 source ./bunt
 source ./example_src
 source ./example_specs
-echo
