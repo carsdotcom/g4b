@@ -120,7 +120,7 @@ bunt_printFail(){
 bunt_printResult(){
     local msg="$1"
     printf "    "
-    if [ $bunt_pass -eq 0 ]; then
+    if [ "${bunt_pass:-0}" -eq 0 ]; then
         bunt_printFail "$msg"
     else
         bunt_printPass "$msg"
@@ -248,7 +248,7 @@ expectOutputNotToMatch() {
 
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name condition_cmd_name msg
+    local subject condition subject_cmd_name condition_cmd_name msg subject_is_func
     while (( "$#" )); do shift; done
     IFS=% subject=( "${bunt_then[@]}" )
     IFS=% condition=( "${bunt_when[@]}" )
@@ -273,10 +273,18 @@ expectToHaveBeenCalled() {
         fi
     }
 
-    eval "$(echo "bunt_bkup_${subject_cmd_name}()"; declare -f ${subject_cmd_name} | tail -n +2)"
-    eval "${subject_cmd_name}() { bunt_spy \"\$@\"; }"
+    subject_is_func=0
+    if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
+        subject_is_func=1
+        eval "$(echo "bunt_bkup_${subject_cmd_name}() "; declare -f ${subject_cmd_name} | tail -n +2)"
+    fi
+    eval "$(echo "${subject_cmd_name}() "; declare -f bunt_spy | tail -n +2)"
     "${condition[@]}" > /dev/null 2>&1
     bunt_printResult "$msg"
-    eval "$(echo "${subject_cmd_name}()"; declare -f bunt_bkup_${subject_cmd_name} | tail -n +2)"
+    if [ "$subject_is_func" -eq 1 ]; then
+        eval "$(echo "${subject_cmd_name}() "; declare -f bunt_bkup_${subject_cmd_name} | tail -n +2)"
+    else
+        unset -f "${subject_cmd_name}"
+    fi
 }
 
