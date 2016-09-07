@@ -16,6 +16,49 @@ FAIL_COUNT=0
 clear
 printf "\n${TUNDERLINE}${TBLUE}Running specs...${TRESET}\n" 
 
+bunt_error() {
+    local callstack=$(caller)
+    local callstack_lineno=$(echo "$callstack" | awk '{print $1}')
+    local callstack_file=$(echo "$callstack" | awk '{print $2}')
+    local message="$1"
+    local code="${2:-1}"
+    printf "\n${TRED}Error on line ${callstack_lineno} of ${callstack_file}\n"
+    if [[ -n "$message" ]] ; then
+        printf "${TRED}Message: ${message}; exiting with status ${code}${TRESET}\n\n"
+    else
+        printf "${TRED}Exiting with status ${code}${TRESET}\n\n"
+    fi
+    exit "${code}"
+}
+
+bunt_finish() {
+    local code=$?
+    [ $code -ne 0 ] && return $code
+    local msg="\n"
+    if [ $PASS_COUNT -gt 0 ]; then
+        msg+="${TGREEN}${TCHECKMARK} ${PASS_COUNT} passed"
+    fi
+    if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
+        msg+="${TBLUE} and "
+    fi
+    if [ $FAIL_COUNT -gt 0 ]; then
+        msg+="${TRED}${TXMARK} ${FAIL_COUNT} failed"
+    fi
+    msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
+    printf "$msg"
+    [ $FAIL_COUNT -gt 0 ] && exit 1 || exit 0
+}
+
+setTraps() {
+    local trap_func="${1:-bunt_finish}"
+    local trap_err_func="${1:-bunt_error}"
+    trap - 0 INT TERM
+    trap $trap_func 0 INT TERM
+    trap - ERR
+    trap $trap_err_func ERR
+}
+setTraps
+
 bunt_it_reset() {
     unset -f beforeEach
     unset -f afterEach
@@ -60,10 +103,16 @@ bunt_printPass(){
 }
 
 bunt_printFail(){
+    local frame=3
     local msg="$1"
     while (( "$#" )); do shift; done
     printf "${TRED}${TXMARK}  "
     [ -n  "$bunt_given" ] && printf "given '${bunt_given}', "
+    msg+="\n       Call stack:"
+    while $(caller $frame > /dev/null 2>&1); do
+        msg+="\n         $(caller $frame)"
+        ((frame++));
+    done
     printf "$msg${TRESET}\n"
     (( FAIL_COUNT++ ))
 }
@@ -78,23 +127,6 @@ bunt_printResult(){
     fi
     (( TOTAL_COUNT++ ))
 }
-
-function finish {
-    local msg="\n"
-    if [ $PASS_COUNT -gt 0 ]; then
-        msg+="${TGREEN}${TCHECKMARK} ${PASS_COUNT} passed"
-    fi
-    if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
-        msg+="${TBLUE} and "
-    fi
-    if [ $FAIL_COUNT -gt 0 ]; then
-        msg+="${TRED}${TXMARK} ${FAIL_COUNT} failed"
-    fi
-    msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
-    printf "$msg"
-    if [ $FAIL_COUNT -gt 0 ]; then exit 1; fi
-}
-trap finish EXIT
 
 when() {
     local cmd
@@ -137,8 +169,10 @@ thenn() {
 }
 
 expectToExitWith() {
-    local code cmd msg
+    local code cmd msg trapped actualExitCode
     code="$1"
+    trapped=0
+    actualExitCode=0
     while (( "$#" )); do shift; done
     IFS=% cmd=( "${bunt_when[@]}" )
     if [ ${#cmd[@]} -gt 1 ]; then
@@ -146,8 +180,13 @@ expectToExitWith() {
     else
         msg="when '${cmd[0]}' is called, then it should exit with $code"
     fi
+    exit() {
+        actualExitCode=$1
+    }
     "${cmd[@]}" > /dev/null 2>&1
-    if [ $? -eq $code ]; then
+    actualExitCode=${actualExitCode:-$?}
+    unset -f exit
+    if [ $actualExitCode -eq $code ]; then
        bunt_pass=1
     else
        bunt_pass=0
@@ -225,9 +264,8 @@ expectToHaveBeenCalled() {
     else
         msg="when ${condition_cmd_name} is called, then '${subject_cmd_name}' should be called"
     fi
+
     bunt_spy() {
-        foo="$*"
-        bar="${subject[*]:1}"
         if [ "$*" == "${subject[*]:1}" ]; then
             bunt_pass=1
         else
