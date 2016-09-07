@@ -9,6 +9,9 @@ TBLUE=$(tput setaf 4)
 TRESET=$(tput sgr0)
 TCHECKMARK="\xe2\x9c\x93"
 TXMARK="\xe2\x9c\x95"
+TOTAL_COUNT=0
+PASS_COUNT=0
+FAIL_COUNT=0
 
 clear
 printf "\n${TUNDERLINE}${TBLUE}Running specs...${TRESET}\n" 
@@ -53,6 +56,7 @@ bunt_printPass(){
     printf "${TGREEN}${TCHECKMARK}  "
     [ -n  "$bunt_given" ] && printf "given '${bunt_given}', "
     printf "$msg${TRESET}\n"
+    (( PASS_COUNT++ ))
 }
 
 bunt_printFail(){
@@ -61,6 +65,7 @@ bunt_printFail(){
     printf "${TRED}${TXMARK}  "
     [ -n  "$bunt_given" ] && printf "given '${bunt_given}', "
     printf "$msg${TRESET}\n"
+    (( FAIL_COUNT++ ))
 }
 
 bunt_printResult(){
@@ -71,7 +76,24 @@ bunt_printResult(){
     else
         bunt_printPass "$msg"
     fi
+    (( TOTAL_COUNT++ ))
 }
+
+function finish {
+    local msg="\n"
+    if [ $PASS_COUNT -gt 0 ]; then
+        msg+="${TGREEN}${TCHECKMARK} ${PASS_COUNT} passed"
+    fi
+    if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
+        msg+="${TBLUE} and "
+    fi
+    if [ $FAIL_COUNT -gt 0 ]; then
+        msg+="${TRED}${TXMARK} ${FAIL_COUNT} failed"
+    fi
+    msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
+    printf "$msg"
+}
+trap finish EXIT
 
 when() {
     local cmd
