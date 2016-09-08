@@ -103,7 +103,7 @@ bunt_printPass(){
 }
 
 bunt_printFail(){
-    local frame=3
+    local frame=0
     local msg="$1"
     while (( "$#" )); do shift; done
     printf "${TRED}${TXMARK}  "
@@ -248,7 +248,7 @@ expectOutputNotToMatch() {
 
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name condition_cmd_name msg bunt_pass_tmp spy_dir command_script_name command_script
+    local subject condition subject_cmd_name subject_output condition_cmd_name msg bunt_pass_tmp spy_dir command_script_name command_script
     while (( "$#" )); do shift; done
     IFS=% subject=( "${bunt_then[@]}" )
     IFS=% condition=( "${bunt_when[@]}" )
@@ -265,17 +265,21 @@ expectToHaveBeenCalled() {
         msg="when ${condition_cmd_name} is called, then '${subject_cmd_name}' should be called"
     fi
 
+    if "${subject[@]}" > /dev/null 2>&1; then
+        "${subject[@]}" | read subject_output
+    fi
 
     # make temp file within which to store bunt_pass value
     bunt_pass_tmp=$(mktemp -t tmp)
+    bunt_args_tmp=$(mktemp -t tmp)
 
     # dynamically define function which writes bunt_pass value to above tmp file
     if [ -n "${subject[*]:1}" ]; then
         # called with...
-        eval "$(echo "bunt_spy(){ if [ \"\$*\" == \"${subject[*]:1}\" ]; then echo 1 > "$bunt_pass_tmp"; else echo 0 > "$bunt_pass_tmp"; fi; }")"
+        eval "$(echo "bunt_spy(){ echo \"\$*\" > \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"$subject_output\"; }")"
     else
         # called
-        eval "$(echo "bunt_spy(){ echo 1 > "$bunt_pass_tmp"; }")"
+        eval "$(echo "bunt_spy(){ echo 1 > \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\"; }")"
     fi
 
     # make temp directory within which to write spy function as script
@@ -299,6 +303,11 @@ expectToHaveBeenCalled() {
     "${command_script[@]}" > /dev/null 2>&1
     # read bunt_pass value from tmp
     bunt_pass="$(cat "$bunt_pass_tmp")"
+
+    if [ -n "$BUNT_DEBUG" ]; then
+        echo "args: $(cat "$bunt_args_tmp")"
+        echo "subject: ${subject[@]:1}"
+    fi
 
     # print result
     bunt_printResult "$msg"
