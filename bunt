@@ -248,7 +248,7 @@ expectOutputNotToMatch() {
 
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name condition_cmd_name msg subject_is_func
+    local subject condition subject_cmd_name condition_cmd_name msg bunt_pass_tmp spy_dir command_script_name command_script
     while (( "$#" )); do shift; done
     IFS=% subject=( "${bunt_then[@]}" )
     IFS=% condition=( "${bunt_when[@]}" )
@@ -265,26 +265,45 @@ expectToHaveBeenCalled() {
         msg="when ${condition_cmd_name} is called, then '${subject_cmd_name}' should be called"
     fi
 
-    bunt_spy() {
-        if [ "$*" == "${subject[*]:1}" ]; then
-            bunt_pass=1
-        else
-            bunt_pass=0
-        fi
-    }
 
-    subject_is_func=0
-    if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
-        subject_is_func=1
-        eval "$(echo "bunt_bkup_${subject_cmd_name}() "; declare -f ${subject_cmd_name} | tail -n +2)"
-    fi
-    eval "$(echo "${subject_cmd_name}() "; declare -f bunt_spy | tail -n +2)"
-    "${condition[@]}" > /dev/null 2>&1
-    bunt_printResult "$msg"
-    if [ "$subject_is_func" -eq 1 ]; then
-        eval "$(echo "${subject_cmd_name}() "; declare -f bunt_bkup_${subject_cmd_name} | tail -n +2)"
+    # make temp file within which to store bunt_pass value
+    bunt_pass_tmp=$(mktemp -t tmp)
+
+    # dynamically define function which writes bunt_pass value to above tmp file
+    if [ -n "${subject[*]:1}" ]; then
+        # called with...
+        eval "$(echo "bunt_spy(){ if [ \"\$*\" == \"${subject[*]:1}\" ]; then echo 1 > "$bunt_pass_tmp"; else echo 0 > "$bunt_pass_tmp"; fi; }")"
     else
-        unset -f "${subject_cmd_name}"
+        # called
+        eval "$(echo "bunt_spy(){ echo 1 > "$bunt_pass_tmp"; }")"
     fi
+
+    # make temp directory within which to write spy function as script
+    spy_dir="$(mktemp -t tmp -d)"
+    # write spy function as script to temp directory
+    echo "$(declare -f bunt_spy | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$spy_dir/${subject_cmd_name}"
+    # make spy script executable
+    chmod +x "$spy_dir/${subject_cmd_name}"
+    # backup PATH
+    PATH_BKUP="$PATH"
+    # add temp directory to beginning of PATH
+    PATH="$spy_dir:$PATH"
+
+    # make temp file to hold condition command as a script
+    command_script_name="$(mktemp -t tmp)"
+    # write command function as script to temp file
+    echo "$(declare -f ${condition_cmd_name} | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$command_script_name"
+    # build command to source conditional command so it will run in same context as above set PATH
+    IFS=% command_script=( "source" "$command_script_name" "${condition[@]:1}" )
+    # run above command which will source command script with arguments
+    "${command_script[@]}" > /dev/null 2>&1
+    # read bunt_pass value from tmp
+    bunt_pass="$(cat "$bunt_pass_tmp")"
+
+    # print result
+    bunt_printResult "$msg"
+
+    # restore PATH
+    export PATH="$PATH_BKUP"
 }
 
