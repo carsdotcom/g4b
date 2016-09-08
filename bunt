@@ -299,14 +299,17 @@ expectToHaveBeenCalled() {
     echo "$(declare -f ${condition_cmd_name} | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$command_script_name"
     # build command to source conditional command so it will run in same context as above set PATH
     IFS=% command_script=( "source" "$command_script_name" "${condition[@]:1}" )
+
     # run above command which will source command script with arguments
     "${command_script[@]}" > /dev/null 2>&1
     # read bunt_pass value from tmp
     bunt_pass="$(cat "$bunt_pass_tmp")"
-
     if [ -n "$BUNT_DEBUG" ]; then
-        echo "args: $(cat "$bunt_args_tmp")"
-        echo "subject: ${subject[@]:1}"
+        echo "condition script: ${command_script[@]}"
+        if [ -n "${subject[*]:1}" ]; then
+            echo "actual args: $(cat "$bunt_args_tmp")"
+            echo "expected args: ${subject[@]:1}"
+        fi
     fi
 
     # print result
