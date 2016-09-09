@@ -60,12 +60,12 @@ setTraps() {
 setTraps
 
 bunt_it_reset() {
-    unset -f beforeEach
-    unset -f afterEach
+    unset -f given
+    unset -f teardown
 }
 
 bunt_expect_reset() {
-    unset bunt_given
+    unset bunt_given_text
     unset bunt_when
     unset bunt_then
     unset bunt_pass
@@ -80,16 +80,16 @@ it(){
     bunt_it_reset
 }
 
-given() {
-    bunt_given=$1
+bunt_set_given() {
+    bunt_given_text="$(declare -f given | tail -r | tail -n +2 | tail -r | tail -n +3 | while read line; do echo "   $line"; done)"
 }
 
-bunt_beforeEach() {
-    declare -f beforeEach > /dev/null && beforeEach
+bunt_given() {
+    declare -f given > /dev/null && bunt_set_given && given
 }
 
-bunt_afterEach() {
-    declare -f afterEach > /dev/null && afterEach
+bunt_teardown() {
+    declare -f teardown > /dev/null && teardown
     bunt_expect_reset
 }
 
@@ -97,7 +97,7 @@ bunt_printPass(){
     local msg="$1"
     while (( "$#" )); do shift; done
     printf "${TGREEN}${TCHECKMARK}  "
-    [ -n  "$bunt_given" ] && printf "given '${bunt_given}', "
+    [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TGREEN}"
     printf "$msg${TRESET}\n"
     (( PASS_COUNT++ ))
 }
@@ -107,7 +107,7 @@ bunt_printFail(){
     local msg="$1"
     while (( "$#" )); do shift; done
     printf "${TRED}${TXMARK}  "
-    [ -n  "$bunt_given" ] && printf "given '${bunt_given}', "
+    [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TRED}"
     msg+="\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
@@ -141,7 +141,7 @@ when() {
 
 thenn() {
     local cmd
-    bunt_beforeEach
+    bunt_given
     if [ "$1" == "exitWith" ]; then
         expectToExitWith $2
     elif [ "$2 $3 $4" == "should be called" ]; then
@@ -164,7 +164,7 @@ thenn() {
             expectOutputNotToMatch
         fi
     fi
-    bunt_afterEach
+    bunt_teardown
     return
 }
 
@@ -176,9 +176,9 @@ expectToExitWith() {
     while (( "$#" )); do shift; done
     IFS=% cmd=( "${bunt_when[@]}" )
     if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with $(printf "'%s' " "${cmd[@]:1}"), then it should exit with $code"
+        msg="when '${cmd[0]}' is called with $(printf "'%s' " "${cmd[@]:1}")\n       then it should exit with $code"
     else
-        msg="when '${cmd[0]}' is called, then it should exit with $code"
+        msg="when '${cmd[0]}' is called\n       then it should exit with $code"
     fi
     exit() {
         actualExitCode=$1
@@ -200,9 +200,9 @@ expectOutputToMatch() {
     while (( "$#" )); do shift; done
     IFS=% cmd=( "${bunt_when[@]}" )
     if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}"), then output should match '$expected_output'"
+        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}")\n       then output should match '$expected_output'"
     else
-        msg="when '${cmd[0]}' is called, then output should match '$expected_output'"
+        msg="when '${cmd[0]}' is called\n       then output should match '$expected_output'"
     fi
     cmd_output=$(${cmd[@]})
     if $(echo "$cmd_output" | grep -q -e "$expected_output"); then
@@ -226,9 +226,9 @@ expectOutputNotToMatch() {
     while (( "$#" )); do shift; done
     IFS=% cmd=( "${bunt_when[@]}" )
     if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}"), then output should not match '$expected_output'"
+        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}")\n       then output should not match '$expected_output'"
     else
-        msg="when '${cmd[0]}' is called, then output should not match '$expected_output'"
+        msg="when '${cmd[0]}' is called\n       then output should not match '$expected_output'"
     fi
     cmd_output=$(${cmd[@]})
     if ! $(echo "$cmd_output" | grep -q -e "$expected_output"); then
@@ -248,7 +248,7 @@ expectOutputNotToMatch() {
 
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name subject_output subject_is_func condition_cmd_name msg bunt_pass_tmp spy_dir condition_script_name condition_script
+    local subject condition subject_cmd_name subject_output subject_code subject_is_func condition_cmd_name msg bunt_pass_tmp spy_dir condition_script_name condition_script
     while (( "$#" )); do shift; done
     IFS=% subject=( "${bunt_then[@]}" )
     IFS=% condition=( "${bunt_when[@]}" )
@@ -256,38 +256,39 @@ expectToHaveBeenCalled() {
     condition_cmd_name="${condition[0]}"
     while (( "$#" )); do shift; done
     if [ ${#subject[@]} -gt 1 ] && [ ${#condition[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}"), then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
+        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}")\n       then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
     elif [ ${#subject[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called, then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
+        msg="when ${condition_cmd_name} is called\n       then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
     elif [ ${#condition[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}"), then '${subject_cmd_name}' should be called"
+        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}")\n       then '${subject_cmd_name}' should be called"
     else
-        msg="when ${condition_cmd_name} is called, then '${subject_cmd_name}' should be called"
+        msg="when ${condition_cmd_name} is called\n       then '${subject_cmd_name}' should be called"
     fi
 
-    if "${subject[@]}" > /dev/null 2>&1; then
-        "${subject[@]}" | read subject_output
-    fi
+    # capture subject output and code
+    subject_output=$("${subject[@]}" 2>&1)
+    subject_code=$?
 
-    # make temp file within which to store bunt_pass value
-    bunt_pass_tmp=$(mktemp -t tmp)
-    bunt_args_tmp=$(mktemp -t tmp)
-
+    # if subject is function back up the original before we replace with spy
     if [ "$(type -t "${subject_cmd_name}")" == function ]; then
         subject_is_func=1
         eval "$(echo "bunt_bkup_${subject_cmd_name}()" && declare -f "${subject_cmd_name}" | tail -n +2)"
         unset -f "${subject_cmd_name}"
     fi
 
+    # make temp file within which to store bunt_pass value
+    bunt_pass_tmp=$(mktemp -t tmp)
+    bunt_args_tmp=$(mktemp -t tmp)
+
     # make temp directory within which to write spy as script
     spy_dir="$(mktemp -t tmp -d)"
     # write spy as script to temp directory ... spy writes bunt_pass value to above tmp file
     if [ -n "${subject[*]:1}" ]; then
         # called with...
-        echo "echo \"\$*\" >| \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"$subject_output\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "echo \"\$*\" >| \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     else
         # called
-        echo "echo 1 >| \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "echo 1 >| \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     fi
     # make spy script executable
     chmod +x "${spy_dir}/${subject_cmd_name}"

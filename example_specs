@@ -38,12 +38,11 @@ describe "testMeWrapper"
 
     it "should have desired output"
 
-        beforeEach() {
-            given "FOO=bar"
+        given() {
             FOO="bar"
         }
 
-        afterEach() {
+        teardown() {
             unset FOO
         }
 
