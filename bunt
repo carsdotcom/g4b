@@ -69,6 +69,8 @@ bunt_expect_reset() {
     unset bunt_when
     unset bunt_then
     unset bunt_pass
+    unset bunt_calls
+    bunt_call_count=0
 }
 
 describe(){
@@ -131,7 +133,7 @@ bunt_printResult(){
 when() {
     local cmd
     if [ "$2 $3" == "is called" ]; then
-        cmd=( $1  )
+        cmd=( $1 )
         if [ $# -gt 4 ]; then
             IFS=% cmd+=( ${@:5} )
         fi
@@ -141,13 +143,21 @@ when() {
 
 thenn() {
     local cmd
+    local isNumber='^[0-9]+$'
     bunt_given
-    if [ "$1" == "exitWith" ]; then
-        expectToExitWith $2
+    if [ "$1 $2" == "exit with" ]; then
+        expectToExitWith $3
     elif [ "$2 $3 $4" == "should be called" ]; then
-        cmd=( $1  )
+        cmd=( $1 )
         if [ $# -gt 5 ]; then
-            IFS=% cmd+=( ${@:6} )
+            if [ "$5" == "with" ]; then
+                IFS=% cmd+=( ${@:6} )
+            elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
+                bunt_calls=$5
+                if [ "$7" == "with" ]; then
+                    IFS=% cmd+=( ${@:8} )
+                fi
+            fi
         fi
         IFS=% bunt_then=( "${cmd[@]}" )
         expectToHaveBeenCalled
@@ -186,7 +196,7 @@ expectToExitWith() {
     "${cmd[@]}" > /dev/null 2>&1
     actualExitCode=${actualExitCode:-$?}
     unset -f exit
-    if [ $actualExitCode -eq $code ]; then
+    if [ "$actualExitCode" -eq "$code" ]; then
        bunt_pass=1
     else
        bunt_pass=0
@@ -255,14 +265,21 @@ expectToHaveBeenCalled() {
     subject_cmd_name="${subject[0]}"
     condition_cmd_name="${condition[0]}"
     while (( "$#" )); do shift; done
-    if [ ${#subject[@]} -gt 1 ] && [ ${#condition[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}")\n       then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
-    elif [ ${#subject[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called\n       then '${subject_cmd_name}' should be called with$(printf " '%s'" "${subject[@]:1}")"
-    elif [ ${#condition[@]} -gt 1 ]; then
-        msg="when ${condition_cmd_name} is called with$(printf " '%s'" "${condition[@]:1}")\n       then '${subject_cmd_name}' should be called"
-    else
-        msg="when ${condition_cmd_name} is called\n       then '${subject_cmd_name}' should be called"
+
+    msg="when ${condition_cmd_name} is called"
+
+    if [ ${#condition[@]} -gt 1 ]; then
+        msg+=" with$(printf " '%s'" "${condition[@]:1}")"
+    fi
+
+    msg+="\n       then '${subject_cmd_name}' should be called"
+
+    if [ ${#subject[@]} -gt 1 ]; then
+        msg+=" with$(printf " '%s'" "${subject[@]:1}")"
+    fi
+
+    if [ -n "$bunt_calls" ]; then
+        msg+=" ${bunt_calls} times"
     fi
 
     # capture subject output and code
@@ -279,16 +296,17 @@ expectToHaveBeenCalled() {
     # make temp file within which to store bunt_pass value
     bunt_pass_tmp=$(mktemp -t tmp)
     bunt_args_tmp=$(mktemp -t tmp)
+    bunt_calls_tmp=$(mktemp -t tmp)
 
     # make temp directory within which to write spy as script
     spy_dir="$(mktemp -t tmp -d)"
     # write spy as script to temp directory ... spy writes bunt_pass value to above tmp file
     if [ -n "${subject[*]:1}" ]; then
         # called with...
-        echo "echo \"\$*\" >| \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo \"\$*\" >| \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     else
         # called
-        echo "echo 1 >| \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo 1 >| \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     fi
     # make spy script executable
     chmod +x "${spy_dir}/${subject_cmd_name}"
@@ -306,7 +324,11 @@ expectToHaveBeenCalled() {
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
 
     # run above condition which will source condition script with arguments
-    "${condition_script[@]}" > /dev/null 2>&1
+    if [ -n "$BUNT_DEBUG" ]; then
+        "${condition_script[@]}"
+    else
+        "${condition_script[@]}" > /dev/null 2>&1
+    fi
 
     if [ -n "$subject_is_func" ]; then
         # restore
@@ -315,6 +337,15 @@ expectToHaveBeenCalled() {
 
     # read bunt_pass value from tmp
     bunt_pass="$(cat "$bunt_pass_tmp")"
+    bunt_call_count="$(cat "$bunt_calls_tmp")"
+    msg+="\n       expected $bunt_calls calls but saw $bunt_call_count"
+    if [ -n "$bunt_calls" ] && [ "${bunt_pass:-0}" -eq 1 ]; then
+        if [ "$bunt_calls" -eq "$bunt_call_count" ]; then
+            bunt_pass=1
+        else
+            bunt_pass=0
+        fi
+    fi
 
     # DEBUG
     if [ -n "$BUNT_DEBUG" ]; then

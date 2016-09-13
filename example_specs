@@ -5,25 +5,25 @@ describe "testMe"
     it "should exit 0 when it receives valid arguments"
 
         when testMe is called with "a b" "c"
-        thenn exitWith 0
+        thenn exit with 0
 
         when testMe is called with "a b" "c"
-        thenn exitWith 0
+        thenn exit with 0
 
         when testMe is called with "a" "z"
-        thenn exitWith 0 # will fail
+        thenn exit with 0 # will fail
 
 
     it "should exit 1 when it receives bad arguments"
 
         when testMe is called with "z" "z"
-        thenn exitWith 1
+        thenn exit with 1
 
         when testMe is called with "a b" "c"
-        thenn exitWith 1 # will fail
+        thenn exit with 1 # will fail
 
         when testMe is called with "a" "b" "c"
-        thenn exitWith 1
+        thenn exit with 1
 
 describe "testMeWrapper"
 
