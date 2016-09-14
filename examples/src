@@ -24,3 +24,18 @@ outputStuff() {
     fi
 }
 
+
+retry() {
+    local n=0
+    local try=$1
+    local cmd="${@: 2}"
+    while : ; do
+        $cmd && exit || {
+            echo "Command Fail.."
+            ((n++))
+            [[ $n -ge $try ]] && return 1
+            echo "retry $n ::"
+            sleep 1;
+        }
+    done
+}

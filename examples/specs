@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+
+label "passing examples"
+
+describe "testMe"
+
+    it "should exit 0 when it receives valid arguments"
+
+        when testMe is called with "a b" "c"
+        thenn exit with 0
+
+        when testMe is called with "a b" "c"
+        thenn exit with 0
+
+    it "should exit 1 when it receives bad arguments"
+
+        when testMe is called with "z" "z"
+        thenn exit with 1
+
+        when testMe is called with "a" "b" "c"
+        thenn exit with 1
+
+describe "testMeWrapper"
+
+    it "should pass the arguments but reverse them"
+
+        when testMeWrapper is called with "a b" "c"
+        thenn testMe should be called with "c" "a b"
+
+    it "should have desired output"
+
+        given() {
+            FOO="bar"
+        }
+
+        teardown() {
+            unset FOO
+        }
+
+        when testMe is called with "a b" "c"
+        thenn output should match "bar"
+
+describe "outputStuff"
+
+    it "should not output errors"
+
+        when outputStuff is called
+        thenn output should not match "error"
+
+        when outputStuff is called with "multiline"
+        thenn output should match "foo"
+
+        when outputStuff is called with "multiline"
+        thenn output should not match "xyzzy"
+
+describe "retry"
+
+    it "should call given function"
+
+        given() {
+            foo() {
+                return 0
+            }
+        }
+        teardown() {
+            unset -f foo
+        }
+        when retry is called with 1 foo
+        thenn foo should be called
+
+    it "should call given function n number of times"
+
+        given() {
+            foo() {
+                return 1
+            }
+        }
+        teardown() {
+            unset -f foo
+        }
+        when retry is called with 3 foo
+        thenn foo should be called 3 times
+
+
+label "failing examples"
+
+describe "testMe"
+
+    it "should exit 0 when it receives valid arguments"
+
+        when testMe is called with "a" "z"
+        thenn exit with 0 # will fail
+
+
+    it "should exit 1 when it receives bad arguments"
+
+        when testMe is called with "a b" "c"
+        thenn exit with 1 # will fail
+
+describe "testMeWrapper"
+
+    it "should pass the arguments but reverse them"
+
+        when testMeWrapper is called with "a b" "c"
+        thenn testMe should be called with "a b" "c" # will fail
+
+
+    it "should have desired output"
+
+        given() {
+            FOO="bar"
+        }
+
+        teardown() {
+            unset FOO
+        }
+
+        when testMe is called with "a b" "c"
+        thenn output should match "foo" # will fail
+
+describe "outputStuff"
+
+    it "should not output errors"
+
+        when outputStuff is called with "foo"
+        thenn output should not match "error" # will fail
+
+        when outputStuff is called with "multiline"
+        thenn output should match "xyzzy" # will fail
+
+
+describe "retry"
+
+    it "should call given function n number of times"
+
+        given() {
+            foo() {
+                return 1
+            }
+        }
+        teardown() {
+            unset -f foo
+        }
+        when retry is called with 3 foo
+        thenn foo should be called 4 times

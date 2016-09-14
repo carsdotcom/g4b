@@ -9,6 +9,7 @@ TBLUE=$(tput setaf 4)
 TRESET=$(tput sgr0)
 TCHECKMARK="\xe2\x9c\x93"
 TXMARK="\xe2\x9c\x95"
+TLINE="\xe2\x8e\xaf"
 TOTAL_COUNT=0
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -59,6 +60,10 @@ setTraps() {
 }
 setTraps
 
+bunt_describe_reset() {
+    unset bunt_xdescribe
+}
+
 bunt_it_reset() {
     unset -f given
     unset -f teardown
@@ -73,13 +78,28 @@ bunt_expect_reset() {
     bunt_call_count=0
 }
 
+label() {
+    local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
+    echo
+    bunt_printRule
+    printf "\n  $text"
+    bunt_printRule
+    echo
+}
+
 describe(){
+    bunt_describe_reset
     bunt_describe_text=$1" "
 }
 
+xdescribe(){
+    bunt_describe_text="Skipping ... $1 "
+    bunt_xdescribe=true
+}
+
 it(){
-    printf "\n  ${TYELLOW}${bunt_describe_text}${1}${TRESET}\n"
     bunt_it_reset
+    printf "\n  ${TYELLOW}${bunt_describe_text}${1}${TRESET}\n"
 }
 
 bunt_set_given() {
@@ -93,6 +113,14 @@ bunt_given() {
 bunt_teardown() {
     declare -f teardown > /dev/null && teardown
     bunt_expect_reset
+}
+
+bunt_printRule() {
+    local cols
+    cols=$(tput cols)
+    (( cols = cols - 4 ))
+    printf "\n  "
+    eval printf %.0s- '{1..'"$cols"\}
 }
 
 bunt_printPass(){
@@ -144,45 +172,46 @@ when() {
 thenn() {
     local cmd
     local isNumber='^[0-9]+$'
-    bunt_given
-    if [ "$1 $2" == "exit with" ]; then
-        expectToExitWith $3
-    elif [ "$2 $3 $4" == "should be called" ]; then
-        cmd=( $1 )
-        if [ $# -gt 5 ]; then
-            if [ "$5" == "with" ]; then
-                IFS=% cmd+=( ${@:6} )
-            elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
-                bunt_calls=$5
-                if [ "$7" == "with" ]; then
-                    IFS=% cmd+=( ${@:8} )
+    if [ -z "$bunt_xdescribe" ]; then
+        bunt_given
+        if [ "$1 $2" == "exit with" ]; then
+            expectToExitWith $3
+        elif [ "$2 $3 $4" == "should be called" ]; then
+            cmd=( $1 )
+            if [ $# -gt 5 ]; then
+                if [ "$5" == "with" ]; then
+                    IFS=% cmd+=( ${@:6} )
+                elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
+                    bunt_calls=$5
+                    if [ "$7" == "with" ]; then
+                        IFS=% cmd+=( ${@:8} )
+                    fi
                 fi
             fi
+            IFS=% bunt_then=( "${cmd[@]}" )
+            expectToHaveBeenCalled
+        elif [ "$1 $2 $3" == "output should match" ]; then
+            if [ $# -gt 3 ]; then
+                expectOutputToMatch "${@:4}"
+            else
+                expectOutputToMatch
+            fi
+        elif [ "$1 $2 $3 $4" == "output should not match" ]; then
+            if [ $# -gt 4 ]; then
+                expectOutputNotToMatch "${@:5}"
+            else
+                expectOutputNotToMatch
+            fi
         fi
-        IFS=% bunt_then=( "${cmd[@]}" )
-        expectToHaveBeenCalled
-    elif [ "$1 $2 $3" == "output should match" ]; then
-        if [ $# -gt 3 ]; then
-            expectOutputToMatch "${@:4}"
-        else
-            expectOutputToMatch
-        fi
-    elif [ "$1 $2 $3 $4" == "output should not match" ]; then
-        if [ $# -gt 4 ]; then
-            expectOutputNotToMatch "${@:5}"
-        else
-            expectOutputNotToMatch
-        fi
+        bunt_teardown
     fi
-    bunt_teardown
     return
 }
 
 expectToExitWith() {
-    local code cmd msg trapped actualExitCode
+    local code cmd msg trapped actual
     code="$1"
     trapped=0
-    actualExitCode=0
     while (( "$#" )); do shift; done
     IFS=% cmd=( "${bunt_when[@]}" )
     if [ ${#cmd[@]} -gt 1 ]; then
@@ -191,12 +220,16 @@ expectToExitWith() {
         msg="when '${cmd[0]}' is called\n       then it should exit with $code"
     fi
     exit() {
-        actualExitCode=$1
+        actual=$1
     }
     "${cmd[@]}" > /dev/null 2>&1
-    actualExitCode=${actualExitCode:-$?}
+    actual=${actual:-$?}
     unset -f exit
-    if [ "$actualExitCode" -eq "$code" ]; then
+    if [ -n "$BUNT_DEBUG" ]; then
+        echo "expected exit code: $code"
+        echo "actual exit code: $actual"
+    fi
+    if [ "$actual" -eq "$code" ]; then
        bunt_pass=1
     else
        bunt_pass=0
