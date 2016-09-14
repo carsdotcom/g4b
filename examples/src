@@ -39,3 +39,8 @@ retry() {
         }
     done
 }
+
+callsSystemCmd() {
+    # putting example of system command being called from subshell just to show we can spy even in the most difficult cases
+    (curl --silent -X GET http://localhost/foo)
+}

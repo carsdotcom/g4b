@@ -81,6 +81,13 @@ describe "retry"
         when retry is called with 3 foo
         thenn foo should be called 3 times
 
+describe "callsSystemCmd"
+
+    it "should call curl"
+
+        when callsSystemCmd is called
+        thenn curl should be called with --silent -X GET http://localhost/foo
+
 
 label "failing examples"
 

@@ -74,7 +74,7 @@ bunt_expect_reset() {
     unset bunt_when
     unset bunt_then
     unset bunt_pass
-    unset bunt_calls
+    bunt_calls=1
     bunt_call_count=0
 }
 
@@ -291,7 +291,7 @@ expectOutputNotToMatch() {
 
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name subject_output subject_code subject_is_func condition_cmd_name msg bunt_pass_tmp spy_dir condition_script_name condition_script
+    local subject condition subject_cmd_name subject_output subject_code subject_is_func condition_cmd_name msg bunt_pass_tmp spy_dir condition_script_name condition_script actual_args
     while (( "$#" )); do shift; done
     IFS=% subject=( "${bunt_then[@]}" )
     IFS=% condition=( "${bunt_when[@]}" )
@@ -311,9 +311,7 @@ expectToHaveBeenCalled() {
         msg+=" with$(printf " '%s'" "${subject[@]:1}")"
     fi
 
-    if [ -n "$bunt_calls" ]; then
-        msg+=" ${bunt_calls} times"
-    fi
+    msg+=" ${bunt_calls} times"
 
     # capture subject output and code
     subject_output=$("${subject[@]}" 2>&1)
@@ -327,7 +325,6 @@ expectToHaveBeenCalled() {
     fi
 
     # make temp file within which to store bunt_pass value
-    bunt_pass_tmp=$(mktemp -t tmp)
     bunt_args_tmp=$(mktemp -t tmp)
     bunt_calls_tmp=$(mktemp -t tmp)
 
@@ -336,10 +333,10 @@ expectToHaveBeenCalled() {
     # write spy as script to temp directory ... spy writes bunt_pass value to above tmp file
     if [ -n "${subject[*]:1}" ]; then
         # called with...
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo \"\$*\" >| \"$bunt_args_tmp\"; if [ \"\$*\" == \"${subject[@]:1}\" ]; then echo 1 > \"$bunt_pass_tmp\"; else echo 0 > \"$bunt_pass_tmp\"; fi; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo \"\$*\" >| \"$bunt_args_tmp\"; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     else
         # called
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo 1 >| \"$bunt_pass_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     fi
     # make spy script executable
     chmod +x "${spy_dir}/${subject_cmd_name}"
@@ -368,25 +365,33 @@ expectToHaveBeenCalled() {
         eval "$(echo "${subject_cmd_name}()" && declare -f "bunt_bkup_${subject_cmd_name}" | tail -n +2)"
     fi
 
-    # read bunt_pass value from tmp
-    bunt_pass="$(cat "$bunt_pass_tmp")"
-    bunt_call_count="$(cat "$bunt_calls_tmp")"
-    msg+="\n       expected $bunt_calls calls but saw $bunt_call_count"
-    if [ -n "$bunt_calls" ] && [ "${bunt_pass:-0}" -eq 1 ]; then
-        if [ "$bunt_calls" -eq "$bunt_call_count" ]; then
-            bunt_pass=1
-        else
-            bunt_pass=0
-        fi
-    fi
-
     # DEBUG
     if [ -n "$BUNT_DEBUG" ]; then
         echo "subject script: ${spy_dir}/${subject_cmd_name}"
         echo "condition script: ${condition_script[@]}"
-        if [ -n "${subject[*]:1}" ]; then
-            echo "actual args: $(cat "$bunt_args_tmp")"
-            echo "expected args: ${subject[@]:1}"
+    fi
+    bunt_call_count="$(cat "$bunt_calls_tmp")"
+
+    if [ "$bunt_calls" -eq "$bunt_call_count" ]; then
+        bunt_pass=1
+    else
+        msg+="\n       expected $bunt_calls calls but saw $bunt_call_count"
+        bunt_pass=0
+    fi
+
+    if [ -n "${subject[*]:1}" ]; then
+        IFS=% actual_args="$(cat "$bunt_args_tmp" | tr -d '\r' | tr -d '\n')"
+        expected_args="${subject[@]:1}"
+
+        if [ -n "$BUNT_DEBUG" ]; then
+            echo "actual args: $actual_args"
+            echo "expected args: $expected_args"
+        fi
+
+        if [ "$actual_args" == "$expected_args" ]; then
+            bunt_pass=1
+        else
+            bunt_pass=0
         fi
     fi
 
