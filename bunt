@@ -142,7 +142,7 @@ bunt_printPass(){
 
     printf "${TGREEN}${TCHECKMARK}  "
     [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TGREEN}"
-    printf "$msg${TRESET}\n"
+    printf "%b${TRESET}\n" "$msg"
 
     (( PASS_COUNT++ ))
 }
@@ -160,7 +160,7 @@ bunt_printFail(){
         msg+="\n         $(caller $frame)"
         ((frame++));
     done
-    printf "$msg${TRESET}\n"
+    printf "%b${TRESET}\n" "$msg"
 
     (( FAIL_COUNT++ ))
 }
@@ -205,15 +205,34 @@ thenn() {
             cmd=( $1 )
             if [ $# -gt 5 ]; then
                 if [ "$5" == "with" ]; then
+
+                    # capture expected arguments
+                    bunt_expected_args_tmp=$(mktemp -t tmp)
+                    IFS_bkup=$IFS
+                    IFS=$'\n'
+                    for arg in "${@:6}"; do
+                        echo $arg >> "$bunt_expected_args_tmp"
+                    done
+                    IFS=$IFS_bkup
+
                     IFS=% cmd+=( ${@:6} )
                 elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
                     bunt_expected_call_count=$5
+
                     if [ "$7" == "with" ]; then
+                        # capture expected arguments
+                        bunt_expected_args_tmp=$(mktemp -t tmp)
+                        IFS_bkup=$IFS
+                        IFS=$'\n'
+                        for arg in "${@:8}"; do
+                            echo $arg >> "$bunt_expected_args_tmp"
+                        done
+                        IFS=$IFS_bkup
                         IFS=% cmd+=( ${@:8} )
                     fi
                 fi
             fi
-            IFS=% bunt_then=( "${cmd[@]}" )
+            bunt_then=( "${cmd[@]}" )
             expectToHaveBeenCalled
 
         elif [ "$1 $2 $3" == "output should match" ]; then
@@ -252,9 +271,9 @@ expectToExitWith() {
     IFS=% cmd=( "${bunt_when[@]}" )
 
     if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with $(printf "'%s' " "${cmd[@]:1}")\n       then it should exit with $code"
+        msg="when \`${cmd[0]}\` is called with $(printf "\`%s\` " "${cmd[@]:1}")\n       then it should exit with \`$code\`"
     else
-        msg="when '${cmd[0]}' is called\n       then it should exit with $code"
+        msg="when \`${cmd[0]}\` is called\n       then it should exit with \`$code\`"
     fi
 
     exit() {
@@ -296,9 +315,9 @@ expectOutputToMatch() {
     IFS=% cmd=( "${bunt_when[@]}" )
 
     if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}")\n       then output should match '$expected_output'"
+        msg="when \`${cmd[0]}\` is called with$(printf " \`%s\`" "${cmd[@]:1}")\n       then output should match \`$expected_output\`"
     else
-        msg="when '${cmd[0]}' is called\n       then output should match '$expected_output'"
+        msg="when \`${cmd[0]}\` is called\n       then output should match \`$expected_output\`"
     fi
 
     cmd_output=$(${cmd[@]})
@@ -320,11 +339,11 @@ expectOutputToMatch() {
 
     if [ "$bunt_pass" -eq 0 ]; then
         if [ $(echo "$cmd_output" | grep -c '$') -gt 1 ]; then
-            msg+="\n       expected output to${invert_text} match '$expected_output'. actual was:\n\n"
+            msg+="\n       expected output to${invert_text} match \`$expected_output\`. actual was:\n\n"
             msg+=$(echo "$cmd_output" | while read line; do echo "         $line"; done)
             msg+="\n"
         else
-            msg+="\n       expected output${invert_text} to match '$expected_output'. actual was '$cmd_output'"
+            msg+="\n       expected output${invert_text} to match \`$expected_output\`. actual was \`$cmd_output\`"
         fi
     fi
 
@@ -333,7 +352,7 @@ expectOutputToMatch() {
 
 expectToHaveBeenCalled() {
     local subject
-    local expected_args
+    local expected_args_text
     local condition
     local subject_cmd_name
     local subject_output
@@ -351,6 +370,9 @@ expectToHaveBeenCalled() {
 
     IFS=% subject=( "${bunt_then[@]}" )
     expected_args="${bunt_then[*]:1}"
+    if [ -n "${subject[*]:1}" ]; then
+        expected_args_text="\`$(cat "$bunt_expected_args_tmp" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\` \`/g')\`"
+    fi
     subject_cmd_name="${subject[0]}"
 
     IFS=% condition=( "${bunt_when[@]}" )
@@ -358,16 +380,16 @@ expectToHaveBeenCalled() {
 
     while (( "$#" )); do shift; done
 
-    msg="when ${condition_cmd_name} is called"
+    msg="when \`${condition_cmd_name}\` is called"
 
     if [ ${#condition[@]} -gt 1 ]; then
-        msg+=" with$(printf " '%s'" "${condition[@]:1}")"
+        msg+=" with$(printf " \`%s\`" "${condition[@]:1}")"
     fi
 
-    msg+="\n       then '${subject_cmd_name}' should be called"
+    msg+="\n       then \`${subject_cmd_name}\` should be called"
 
     if [ ${#subject[@]} -gt 1 ]; then
-        msg+=" with$(printf " '%s'" "${subject[@]:1}")"
+        msg+=" with $expected_args_text"
     fi
 
     msg+=" ${bunt_expected_call_count} times"
@@ -384,7 +406,7 @@ expectToHaveBeenCalled() {
     fi
 
     # make temp file within which to store bunt_pass value
-    bunt_args_tmp=$(mktemp -t tmp)
+    bunt_actual_args_tmp=$(mktemp -t tmp)
     bunt_calls_tmp=$(mktemp -t tmp)
 
     # make temp directory within which to write spy as script
@@ -396,8 +418,12 @@ expectToHaveBeenCalled() {
         echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);\
             (( call_count++ ));\
             echo \$call_count >| \"$bunt_calls_tmp\";\
-            IFS=% args=( "\$@" );\
-            echo \"\${args[*]}\" >| \"$bunt_args_tmp\";\
+            IFS_bkup=\$IFS
+            IFS=$'\n'
+            for arg in \"\$@\"; do
+                echo \$arg >> \"$bunt_actual_args_tmp\"
+            done
+            IFS=\$IFS_bkup
             [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     else
         # define spy for the "called" case
@@ -453,16 +479,12 @@ expectToHaveBeenCalled() {
     # if arguments were expected...
     if [ -n "${subject[*]:1}" ]; then
 
-        # read actual args from temp file
-        IFS=% actual_args="$(cat "$bunt_args_tmp")"
-        actual_args="${actual_args[*]}"
-
         if [ -n "$BUNT_DEBUG" ]; then
-            echo "actual args: $actual_args"
-            echo "expected args: $expected_args"
+            echo "actual args: $(cat "$bunt_actual_args_tmp")"
+            echo "expected args: $(cat "$bunt_expected_args_tmp")"
         fi
 
-        if [ "$actual_args" == "$expected_args" ]; then
+        if [ -z "$(diff "$bunt_expected_args_tmp" "$bunt_actual_args_tmp")" ]; then
             bunt_pass=1
         else
             bunt_pass=0
