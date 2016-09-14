@@ -23,36 +23,46 @@ bunt_error() {
     local callstack_file=$(echo "$callstack" | awk '{print $2}')
     local message="$1"
     local code="${2:-1}"
+
     printf "\n${TRED}Error on line ${callstack_lineno} of ${callstack_file}\n"
     if [[ -n "$message" ]] ; then
         printf "${TRED}Message: ${message}; exiting with status ${code}${TRESET}\n\n"
     else
         printf "${TRED}Exiting with status ${code}${TRESET}\n\n"
     fi
+
     exit "${code}"
 }
 
 bunt_finish() {
     local code=$?
-    [ $code -ne 0 ] && return $code
     local msg="\n"
+
+    [ $code -ne 0 ] && return $code
+
     if [ $PASS_COUNT -gt 0 ]; then
         msg+="${TGREEN}${TCHECKMARK} ${PASS_COUNT} passed"
     fi
+
     if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
         msg+="${TBLUE} and "
     fi
+
     if [ $FAIL_COUNT -gt 0 ]; then
         msg+="${TRED}${TXMARK} ${FAIL_COUNT} failed"
     fi
+
     msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
+
     printf "$msg"
+
     [ $FAIL_COUNT -gt 0 ] && exit 1 || exit 0
 }
 
 setTraps() {
     local trap_func="${1:-bunt_finish}"
     local trap_err_func="${1:-bunt_error}"
+
     trap - 0 INT TERM
     trap $trap_func 0 INT TERM
     trap - ERR
@@ -74,8 +84,8 @@ bunt_expect_reset() {
     unset bunt_when
     unset bunt_then
     unset bunt_pass
-    bunt_calls=1
-    bunt_call_count=0
+    bunt_expected_call_count=1
+    bunt_actual_call_count=0
 }
 
 label() {
@@ -117,25 +127,32 @@ bunt_teardown() {
 
 bunt_printRule() {
     local cols
+
     cols=$(tput cols)
     (( cols = cols - 4 ))
+
     printf "\n  "
     eval printf %.0s- '{1..'"$cols"\}
 }
 
 bunt_printPass(){
     local msg="$1"
+
     while (( "$#" )); do shift; done
+
     printf "${TGREEN}${TCHECKMARK}  "
     [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TGREEN}"
     printf "$msg${TRESET}\n"
+
     (( PASS_COUNT++ ))
 }
 
 bunt_printFail(){
     local frame=0
     local msg="$1"
+
     while (( "$#" )); do shift; done
+
     printf "${TRED}${TXMARK}  "
     [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TRED}"
     msg+="\n       Call stack:"
@@ -144,22 +161,27 @@ bunt_printFail(){
         ((frame++));
     done
     printf "$msg${TRESET}\n"
+
     (( FAIL_COUNT++ ))
 }
 
 bunt_printResult(){
     local msg="$1"
+
     printf "    "
+
     if [ "${bunt_pass:-0}" -eq 0 ]; then
         bunt_printFail "$msg"
     else
         bunt_printPass "$msg"
     fi
+
     (( TOTAL_COUNT++ ))
 }
 
 when() {
     local cmd
+
     if [ "$2 $3" == "is called" ]; then
         cmd=( $1 )
         if [ $# -gt 4 ]; then
@@ -172,17 +194,20 @@ when() {
 thenn() {
     local cmd
     local isNumber='^[0-9]+$'
+
     if [ -z "$bunt_xdescribe" ]; then
         bunt_given
+
         if [ "$1 $2" == "exit with" ]; then
             expectToExitWith $3
+
         elif [ "$2 $3 $4" == "should be called" ]; then
             cmd=( $1 )
             if [ $# -gt 5 ]; then
                 if [ "$5" == "with" ]; then
                     IFS=% cmd+=( ${@:6} )
                 elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
-                    bunt_calls=$5
+                    bunt_expected_call_count=$5
                     if [ "$7" == "with" ]; then
                         IFS=% cmd+=( ${@:8} )
                     fi
@@ -190,113 +215,147 @@ thenn() {
             fi
             IFS=% bunt_then=( "${cmd[@]}" )
             expectToHaveBeenCalled
+
         elif [ "$1 $2 $3" == "output should match" ]; then
             if [ $# -gt 3 ]; then
-                expectOutputToMatch "${@:4}"
+                expectOutputToMatch 0 "${@:4}"
             else
-                expectOutputToMatch
+                expectOutputToMatch 0
             fi
+
         elif [ "$1 $2 $3 $4" == "output should not match" ]; then
             if [ $# -gt 4 ]; then
-                expectOutputNotToMatch "${@:5}"
+                expectOutputToMatch 1 "${@:5}"
             else
-                expectOutputNotToMatch
+                expectOutputToMatch 1
             fi
+
         fi
+
         bunt_teardown
     fi
     return
 }
 
 expectToExitWith() {
-    local code cmd msg trapped actual
+    local code
+    local cmd
+    local msg
+    local trapped
+    local actual
+
     code="$1"
     trapped=0
+
     while (( "$#" )); do shift; done
+
     IFS=% cmd=( "${bunt_when[@]}" )
+
     if [ ${#cmd[@]} -gt 1 ]; then
         msg="when '${cmd[0]}' is called with $(printf "'%s' " "${cmd[@]:1}")\n       then it should exit with $code"
     else
         msg="when '${cmd[0]}' is called\n       then it should exit with $code"
     fi
+
     exit() {
         actual=$1
     }
+
     "${cmd[@]}" > /dev/null 2>&1
     actual=${actual:-$?}
+
     unset -f exit
+
     if [ -n "$BUNT_DEBUG" ]; then
         echo "expected exit code: $code"
         echo "actual exit code: $actual"
     fi
+
     if [ "$actual" -eq "$code" ]; then
        bunt_pass=1
     else
        bunt_pass=0
     fi
+
     bunt_printResult "$msg"
 }
 
 expectOutputToMatch() {
-    local expected_output cmd msg cmd_output
-    expected_output="$1"
+    local invert
+    local invert_text
+    local expected_output
+    local cmd
+    local msg
+    local cmd_output
+
+    invert="$1"
+    expected_output="$2"
+
     while (( "$#" )); do shift; done
+
     IFS=% cmd=( "${bunt_when[@]}" )
+
     if [ ${#cmd[@]} -gt 1 ]; then
         msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}")\n       then output should match '$expected_output'"
     else
         msg="when '${cmd[0]}' is called\n       then output should match '$expected_output'"
     fi
+
     cmd_output=$(${cmd[@]})
+
     if $(echo "$cmd_output" | grep -q -e "$expected_output"); then
         bunt_pass=1
     else
         bunt_pass=0
+    fi
+
+    if [ "$invert" -eq 1 ]; then
+        if [ "$bunt_pass" -eq 0 ]; then
+            bunt_pass=1
+        else
+            bunt_pass=0
+        fi
+        invert_text=" not"
+    fi
+
+    if [ "$bunt_pass" -eq 0 ]; then
         if [ $(echo "$cmd_output" | grep -c '$') -gt 1 ]; then
-            msg+="\n       expected output to match '$expected_output'. actual was:\n\n"
+            msg+="\n       expected output to${invert_text} match '$expected_output'. actual was:\n\n"
             msg+=$(echo "$cmd_output" | while read line; do echo "         $line"; done)
             msg+="\n"
         else
-            msg+="\n       expected output to match '$expected_output'. actual was '$cmd_output'"
+            msg+="\n       expected output${invert_text} to match '$expected_output'. actual was '$cmd_output'"
         fi
     fi
+
     bunt_printResult "$msg"
 }
-
-expectOutputNotToMatch() {
-    local expected_output cmd msg cmd_output
-    expected_output="$1"
-    while (( "$#" )); do shift; done
-    IFS=% cmd=( "${bunt_when[@]}" )
-    if [ ${#cmd[@]} -gt 1 ]; then
-        msg="when '${cmd[0]}' is called with$(printf " '%s'" "${cmd[@]:1}")\n       then output should not match '$expected_output'"
-    else
-        msg="when '${cmd[0]}' is called\n       then output should not match '$expected_output'"
-    fi
-    cmd_output=$(${cmd[@]})
-    if ! $(echo "$cmd_output" | grep -q -e "$expected_output"); then
-        bunt_pass=1
-    else
-        bunt_pass=0
-        if [ $(echo "$cmd_output" | grep -c '$') -gt 1 ]; then
-            msg+="\n       expected output not to match '$expected_output'. actual was:\n\n"
-            msg+=$(echo "$cmd_output" | while read line; do echo "         $line"; done)
-            msg+="\n"
-        else
-            msg+="\n       expected output to not match '$expected_output'. actual was '$cmd_output'"
-        fi
-    fi
-    bunt_printResult "$msg"
-}
-
 
 expectToHaveBeenCalled() {
-    local subject condition subject_cmd_name subject_output subject_code subject_is_func condition_cmd_name msg bunt_pass_tmp spy_dir condition_script_name condition_script actual_args
+    local subject
+    local expected_args
+    local condition
+    local subject_cmd_name
+    local subject_output
+    local subject_code
+    local subject_is_func
+    local condition_cmd_name
+    local msg
+    local bunt_pass_tmp
+    local spy_dir
+    local condition_script_name
+    local condition_script
+    local actual_args
+
     while (( "$#" )); do shift; done
+
     IFS=% subject=( "${bunt_then[@]}" )
-    IFS=% condition=( "${bunt_when[@]}" )
+    expected_args="${bunt_then[*]:1}"
     subject_cmd_name="${subject[0]}"
+
+    IFS=% condition=( "${bunt_when[@]}" )
     condition_cmd_name="${condition[0]}"
+
     while (( "$#" )); do shift; done
 
     msg="when ${condition_cmd_name} is called"
@@ -311,9 +370,9 @@ expectToHaveBeenCalled() {
         msg+=" with$(printf " '%s'" "${subject[@]:1}")"
     fi
 
-    msg+=" ${bunt_calls} times"
+    msg+=" ${bunt_expected_call_count} times"
 
-    # capture subject output and code
+    # capture original subject output and code for later use
     subject_output=$("${subject[@]}" 2>&1)
     subject_code=$?
 
@@ -330,14 +389,24 @@ expectToHaveBeenCalled() {
 
     # make temp directory within which to write spy as script
     spy_dir="$(mktemp -t tmp -d)"
+
     # write spy as script to temp directory ... spy writes bunt_pass value to above tmp file
     if [ -n "${subject[*]:1}" ]; then
-        # called with...
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\";echo \"\$*\" >| \"$bunt_args_tmp\"; [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        # define spy for the "called with" case...
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);\
+            (( call_count++ ));\
+            echo \$call_count >| \"$bunt_calls_tmp\";\
+            IFS=% args=( "\$@" );\
+            echo \"\${args[*]}\" >| \"$bunt_args_tmp\";\
+            [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     else
-        # called
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);(( call_count++ ));echo \$call_count >| \"$bunt_calls_tmp\"; [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
+        # define spy for the "called" case
+        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);\
+            (( call_count++ ));\
+            echo \$call_count >| \"$bunt_calls_tmp\";\
+            [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
     fi
+
     # make spy script executable
     chmod +x "${spy_dir}/${subject_cmd_name}"
 
@@ -370,18 +439,23 @@ expectToHaveBeenCalled() {
         echo "subject script: ${spy_dir}/${subject_cmd_name}"
         echo "condition script: ${condition_script[@]}"
     fi
-    bunt_call_count="$(cat "$bunt_calls_tmp")"
 
-    if [ "$bunt_calls" -eq "$bunt_call_count" ]; then
+    # read actual call count from temp file
+    bunt_actual_call_count="$(cat "$bunt_calls_tmp")"
+
+    if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ]; then
         bunt_pass=1
     else
-        msg+="\n       expected $bunt_calls calls but saw $bunt_call_count"
+        msg+="\n       expected ${bunt_expected_call_count} calls but saw ${bunt_actual_call_count}"
         bunt_pass=0
     fi
 
+    # if arguments were expected...
     if [ -n "${subject[*]:1}" ]; then
-        IFS=% actual_args="$(cat "$bunt_args_tmp" | tr -d '\r' | tr -d '\n')"
-        expected_args="${subject[@]:1}"
+
+        # read actual args from temp file
+        IFS=% actual_args="$(cat "$bunt_args_tmp")"
+        actual_args="${actual_args[*]}"
 
         if [ -n "$BUNT_DEBUG" ]; then
             echo "actual args: $actual_args"
