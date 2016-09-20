@@ -13,6 +13,7 @@ TLINE="\xe2\x8e\xaf"
 TOTAL_COUNT=0
 PASS_COUNT=0
 FAIL_COUNT=0
+PATH_BKUP="$PATH"
 
 clear
 printf "\n${TUNDERLINE}${TBLUE}Running specs...${TRESET}\n" 
@@ -86,6 +87,7 @@ bunt_expect_reset() {
     unset bunt_pass
     bunt_expected_call_count=1
     bunt_actual_call_count=0
+    PATH="$PATH_BKUP"
 }
 
 label() {
@@ -253,7 +255,6 @@ thenn() {
 
         bunt_teardown
     fi
-    return
 }
 
 expectToExitWith() {
@@ -350,125 +351,104 @@ expectOutputToMatch() {
     bunt_printResult "$msg"
 }
 
-expectToHaveBeenCalled() {
-    local subject
-    local expected_args_text
-    local condition
-    local subject_cmd_name
-    local subject_output
-    local subject_code
-    local subject_is_func
-    local condition_cmd_name
-    local msg
-    local bunt_pass_tmp
-    local spy_dir
-    local condition_script_name
-    local condition_script
-    local actual_args
+createSpy() {
+    local name=$1
+    local output=$1
+    local code=$1
 
     while (( "$#" )); do shift; done
 
+    local tmp_dir="$(mktemp -t tmp -d)"
+    local tmp_args=$(mktemp -t tmp)
+    local tmp_calls=$(mktemp -t tmp)
+
+    echo "call_count=\$(cat \"$tmp_calls\" 2>/dev/null || echo 0)
+        (( call_count++ ))
+        echo \$call_count >| \"$tmp_calls\"
+        IFS_bkup=\$IFS
+        IFS=$'\n'
+        for arg in \"\$@\"; do
+            echo \$arg >> \"$tmp_args\"
+        done
+        IFS=\$IFS_bkup
+        [ -n \"$output\" ] && printf \"${output}\" && return \"${code}\"" > "${tmp_dir}/${name}"
+
+    chmod +x "${tmp_dir}/${name}"
+
+    echo $tmp_dir
+    echo $tmp_args
+    echo $tmp_calls
+}
+
+expectToHaveBeenCalled() {
+    local subject
+    local subject_cmd_name
+    local expected_args
+    local expected_args_text
+    local condition
+    local condition_cmd_name
+    local subject_output
+    local subject_code
+    local msg
+    local condition_script_name
+    local condition_script
+    local tmp_files
+    local tmp_dir
+    local tmp_args
+    local tmp_calls
+
     IFS=% subject=( "${bunt_then[@]}" )
-    expected_args="${bunt_then[*]:1}"
-    if [ -n "${subject[*]:1}" ]; then
-        expected_args_text="\`$(cat "$bunt_expected_args_tmp" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\` \`/g')\`"
-    fi
     subject_cmd_name="${subject[0]}"
 
     IFS=% condition=( "${bunt_when[@]}" )
     condition_cmd_name="${condition[0]}"
 
-    while (( "$#" )); do shift; done
+    expected_args="${bunt_then[*]:1}"
+    if [ -n "${subject[*]:1}" ]; then
+        expected_args_text="\`$(cat "$bunt_expected_args_tmp" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\` \`/g')\`"
+    fi
 
     msg="when \`${condition_cmd_name}\` is called"
-
-    if [ ${#condition[@]} -gt 1 ]; then
+    if [ "${#condition[@]}" -gt 1 ]; then
         msg+=" with$(printf " \`%s\`" "${condition[@]:1}")"
     fi
-
     msg+="\n       then \`${subject_cmd_name}\` should be called"
-
-    if [ ${#subject[@]} -gt 1 ]; then
+    if [ "${#subject[@]}" -gt 1 ]; then
         msg+=" with $expected_args_text"
     fi
-
     msg+=" ${bunt_expected_call_count} times"
 
-    # capture original subject output and code for later use
-    subject_output=$("${subject[@]}" 2>&1)
-    subject_code=$?
-
-    # if subject is function back up the original before we replace with spy
-    if [ "$(type -t "${subject_cmd_name}")" == function ]; then
-        subject_is_func=1
+    # backup original subject, if function
+    if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
         eval "$(echo "bunt_bkup_${subject_cmd_name}()" && declare -f "${subject_cmd_name}" | tail -n +2)"
         unset -f "${subject_cmd_name}"
     fi
 
-    # make temp file within which to store bunt_pass value
-    bunt_actual_args_tmp=$(mktemp -t tmp)
-    bunt_calls_tmp=$(mktemp -t tmp)
+    # replace with spy
+    subject_output=$("${subject[@]}" 2>&1)
+    subject_code=$?
+    IFS=$'\n' tmp_files=( $(createSpy "$subject_cmd_name" "$subject_output" "$subject_code") )
+    local tmp_dir="${tmp_files[0]}"
+    local tmp_args="${tmp_files[1]}"
+    local tmp_calls="${tmp_files[2]}"
+    PATH="${tmp_dir}:${PATH}"
 
-    # make temp directory within which to write spy as script
-    spy_dir="$(mktemp -t tmp -d)"
-
-    # write spy as script to temp directory ... spy writes bunt_pass value to above tmp file
-    if [ -n "${subject[*]:1}" ]; then
-        # define spy for the "called with" case...
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);\
-            (( call_count++ ));\
-            echo \$call_count >| \"$bunt_calls_tmp\";\
-            IFS_bkup=\$IFS
-            IFS=$'\n'
-            for arg in \"\$@\"; do
-                echo \$arg >> \"$bunt_actual_args_tmp\"
-            done
-            IFS=\$IFS_bkup
-            [ -n \"$subject_output\" ] && printf \"${subject_output}\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
-    else
-        # define spy for the "called" case
-        echo "call_count=\$(cat \"$bunt_calls_tmp\" 2>/dev/null || echo 0);\
-            (( call_count++ ));\
-            echo \$call_count >| \"$bunt_calls_tmp\";\
-            [ -n \"$subject_output\" ] && printf \"$subject_output\" && return \"${subject_code}\"" > "${spy_dir}/${subject_cmd_name}"
-    fi
-
-    # make spy script executable
-    chmod +x "${spy_dir}/${subject_cmd_name}"
-
-    # backup PATH
-    PATH_BKUP="$PATH"
-    # add temp directory to beginning of PATH
-    PATH="$spy_dir:$PATH"
-
-    # make temp file to hold condition as a script
+    # source condition as script
     condition_script_name="$(mktemp -t tmp)"
-    # write condition function as script to temp file
     echo "$(declare -f ${condition_cmd_name} | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$condition_script_name"
-    # build condition to source conditional condition so it will run in same context as above set PATH
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
+    if [ -n "$BUNT_DEBUG" ]; then "${condition_script[@]}"; else "${condition_script[@]}" > /dev/null 2>&1; fi
 
-    # run above condition which will source condition script with arguments
-    if [ -n "$BUNT_DEBUG" ]; then
-        "${condition_script[@]}"
-    else
-        "${condition_script[@]}" > /dev/null 2>&1
-    fi
-
-    if [ -n "$subject_is_func" ]; then
-        # restore
+    # restore original subject, if function
+    if [ "$(type -t "bunt_bkup_${subject_cmd_name}")" == "function" ]; then
         eval "$(echo "${subject_cmd_name}()" && declare -f "bunt_bkup_${subject_cmd_name}" | tail -n +2)"
+        unset -f "bunt_bkup_${subject_cmd_name}"
     fi
 
-    # DEBUG
-    if [ -n "$BUNT_DEBUG" ]; then
-        echo "subject script: ${spy_dir}/${subject_cmd_name}"
-        echo "condition script: ${condition_script[@]}"
-    fi
+    if [ -n "$BUNT_DEBUG" ]; then echo "subject script: ${tmp_dir}/${subject_cmd_name}"; echo "condition script: ${condition_script[@]}"; fi
 
-    # read actual call count from temp file
-    bunt_actual_call_count="$(cat "$bunt_calls_tmp")"
-
+    # check call count
+    bunt_actual_call_count="$(cat "$tmp_calls")"
     if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ]; then
         bunt_pass=1
     else
@@ -476,15 +456,10 @@ expectToHaveBeenCalled() {
         bunt_pass=0
     fi
 
-    # if arguments were expected...
+    # check arguments
     if [ -n "${subject[*]:1}" ]; then
-
-        if [ -n "$BUNT_DEBUG" ]; then
-            echo "actual args: $(cat "$bunt_actual_args_tmp")"
-            echo "expected args: $(cat "$bunt_expected_args_tmp")"
-        fi
-
-        if [ -z "$(diff "$bunt_expected_args_tmp" "$bunt_actual_args_tmp")" ]; then
+        if [ -n "$BUNT_DEBUG" ]; then echo "actual args: $(cat "$tmp_args")"; echo "expected args: $(cat "$bunt_expected_args_tmp")"; fi
+        if [ -z "$(diff "$bunt_expected_args_tmp" "$tmp_args")" ]; then
             bunt_pass=1
         else
             bunt_pass=0
@@ -494,7 +469,5 @@ expectToHaveBeenCalled() {
     # print result
     bunt_printResult "$msg"
 
-    # restore PATH
-    export PATH="$PATH_BKUP"
 }
 
