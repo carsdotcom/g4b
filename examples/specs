@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-label "passing examples"
+section "passing examples"
 
 describe "testMe"
 
@@ -63,9 +63,11 @@ describe "retry"
                 return 0
             }
         }
+
         teardown() {
             unset -f foo
         }
+
         when retry is called with 1 foo
         thenn foo should be called
 
@@ -76,9 +78,11 @@ describe "retry"
                 return 1
             }
         }
+
         teardown() {
             unset -f foo
         }
+
         when retry is called with 3 foo
         thenn foo should be called 3 times
 
@@ -96,7 +100,7 @@ describe "callsSystemCmd"
         thenn curl should be called 2 times
 
 
-label "failing examples"
+section "failing examples"
 
 describe "testMe"
 
@@ -152,8 +156,10 @@ describe "retry"
                 return 1
             }
         }
+
         teardown() {
             unset -f foo
         }
+
         when retry is called with 3 foo
         thenn foo should be called 4 times

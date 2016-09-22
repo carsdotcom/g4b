@@ -90,7 +90,7 @@ bunt_expect_reset() {
     PATH="$PATH_BKUP"
 }
 
-label() {
+section() {
     local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
     echo
     bunt_printRule
