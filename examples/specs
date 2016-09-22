@@ -88,6 +88,12 @@ describe "callsSystemCmd"
         when callsSystemCmd is called
         thenn curl should be called with --silent -X GET http://localhost/foo
 
+        when callsSystemCmd is called
+        thenn curl should be called with -X POST http://localhost/bar
+
+        when callsSystemCmd is called
+        thenn curl should be called 2 times
+
 
 label "failing examples"
 

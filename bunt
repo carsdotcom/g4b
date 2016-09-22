@@ -368,7 +368,7 @@ createSpy() {
         IFS_bkup=\$IFS
         IFS=$'\n'
         for arg in \"\$@\"; do
-            echo \$arg >> \"$tmp_args\"
+            echo \$arg >> \"${tmp_args}-\${call_count}\"
         done
         IFS=\$IFS_bkup
         [ -n \"$output\" ] && printf \"${output}\" && return \"${code}\"" > "${tmp_dir}/${name}"
@@ -458,12 +458,15 @@ expectToHaveBeenCalled() {
 
     # check arguments
     if [ -n "${subject[*]:1}" ]; then
-        if [ -n "$BUNT_DEBUG" ]; then echo "actual args: $(cat "$tmp_args")"; echo "expected args: $(cat "$bunt_expected_args_tmp")"; fi
-        if [ -z "$(diff "$bunt_expected_args_tmp" "$tmp_args")" ]; then
-            bunt_pass=1
-        else
-            bunt_pass=0
-        fi
+        for ((i=1;i<=${bunt_actual_call_count};i++)); do
+            if [ -n "$BUNT_DEBUG" ]; then echo "actual args: $(cat "${tmp_args}-$i")"; echo "expected args: $(cat "$bunt_expected_args_tmp")"; fi
+            if [ -z "$(diff "$bunt_expected_args_tmp" "${tmp_args}-$i")" ]; then
+                bunt_pass=1
+                break
+            else
+                bunt_pass=0
+            fi
+        done
     fi
 
     # print result
