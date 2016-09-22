@@ -3,17 +3,17 @@
 
 section "passing examples"
 
-describe "testMe"
+feature "testMe"
 
-    it "should exit 0 when it receives valid arguments"
-
-        when testMe is called with "a b" "c"
-        thenn exit with 0
+    scenario "should exit 0 when it receives valid arguments"
 
         when testMe is called with "a b" "c"
         thenn exit with 0
 
-    it "should exit 1 when it receives bad arguments"
+        when testMe is called with "a b" "c"
+        thenn exit with 0
+
+    scenario "should exit 1 when it receives bad arguments"
 
         when testMe is called with "z" "z"
         thenn exit with 1
@@ -21,14 +21,14 @@ describe "testMe"
         when testMe is called with "a" "b" "c"
         thenn exit with 1
 
-describe "testMeWrapper"
+feature "testMeWrapper"
 
-    it "should pass the arguments but reverse them"
+    scenario "should pass the arguments but reverse them"
 
         when testMeWrapper is called with "a b" "c"
         thenn testMe should be called with "c" "a b"
 
-    it "should have desired output"
+    scenario "should have desired output"
 
         given() {
             FOO="bar"
@@ -41,9 +41,9 @@ describe "testMeWrapper"
         when testMe is called with "a b" "c"
         thenn output should match "bar"
 
-describe "outputStuff"
+feature "outputStuff"
 
-    it "should not output errors"
+    scenario "should not output errors"
 
         when outputStuff is called
         thenn output should not match "error"
@@ -54,9 +54,9 @@ describe "outputStuff"
         when outputStuff is called with "multiline"
         thenn output should not match "xyzzy"
 
-describe "retry"
+feature "retry"
 
-    it "should call given function"
+    scenario "should call given function"
 
         given() {
             foo() {
@@ -71,7 +71,7 @@ describe "retry"
         when retry is called with 1 foo
         thenn foo should be called
 
-    it "should call given function n number of times"
+    scenario "should call given function n number of times"
 
         given() {
             foo() {
@@ -86,9 +86,9 @@ describe "retry"
         when retry is called with 3 foo
         thenn foo should be called 3 times
 
-describe "callsSystemCmd"
+feature "callsSystemCmd"
 
-    it "should call curl"
+    scenario "should call curl"
 
         when callsSystemCmd is called
         thenn curl should be called with --silent -X GET http://localhost/foo
@@ -102,28 +102,28 @@ describe "callsSystemCmd"
 
 section "failing examples"
 
-describe "testMe"
+feature "testMe"
 
-    it "should exit 0 when it receives valid arguments"
+    scenario "should exit 0 when it receives valid arguments"
 
         when testMe is called with "a" "z"
         thenn exit with 0 # will fail
 
 
-    it "should exit 1 when it receives bad arguments"
+    scenario "should exit 1 when it receives bad arguments"
 
         when testMe is called with "a b" "c"
         thenn exit with 1 # will fail
 
-describe "testMeWrapper"
+feature "testMeWrapper"
 
-    it "should pass the arguments but reverse them"
+    scenario "should pass the arguments but reverse them"
 
         when testMeWrapper is called with "a b" "c"
         thenn testMe should be called with "a b" "c" # will fail
 
 
-    it "should have desired output"
+    scenario "should have desired output"
 
         given() {
             FOO="bar"
@@ -136,9 +136,9 @@ describe "testMeWrapper"
         when testMe is called with "a b" "c"
         thenn output should match "foo" # will fail
 
-describe "outputStuff"
+feature "outputStuff"
 
-    it "should not output errors"
+    scenario "should not output errors"
 
         when outputStuff is called with "foo"
         thenn output should not match "error" # will fail
@@ -147,9 +147,9 @@ describe "outputStuff"
         thenn output should match "xyzzy" # will fail
 
 
-describe "retry"
+feature "retry"
 
-    it "should call given function n number of times"
+    scenario "should call given function n number of times"
 
         given() {
             foo() {

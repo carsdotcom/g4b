@@ -71,11 +71,11 @@ setTraps() {
 }
 setTraps
 
-bunt_describe_reset() {
-    unset bunt_xdescribe
+bunt_feature_reset() {
+    unset bunt_xfeature
 }
 
-bunt_it_reset() {
+bunt_scenario_reset() {
     unset -f given
     unset -f teardown
 }
@@ -99,11 +99,11 @@ section() {
     echo
 }
 
-describe(){
+feature(){
     if [ -z "$bunt_focus" ]; then
-        fdescribe "$1"
+        ffeature "$1"
     else
-        xdescribe "$1"
+        xfeature "$1"
     fi
 }
 
@@ -111,24 +111,24 @@ focus() {
     bunt_focus=1
 }
 
-fdescribe(){
-    bunt_describe_reset
-    bunt_describe_text="$1 "
+ffeature(){
+    bunt_feature_reset
+    bunt_feature_text="$1 "
 }
 
-xdescribe(){
-    bunt_describe_reset
-    bunt_describe_text="Skipping ... $1 "
-    bunt_xdescribe=true
+xfeature(){
+    bunt_feature_reset
+    bunt_feature_text="Skipping ... $1 "
+    bunt_xfeature=true
 }
 
-it(){
+scenario(){
     local eol="\n"
-    bunt_it_reset
-    if [ -n "$bunt_xdescribe" ]; then
+    bunt_scenario_reset
+    if [ -n "$bunt_xfeature" ]; then
         eol=""
     fi
-    printf "\n  %b%s%s%b%b" $TYELLOW "$bunt_describe_text" "$1" $TRESET $eol
+    printf "\n  %b%s%s%b%b" $TYELLOW "$bunt_feature_text" "$1" $TRESET $eol
 }
 
 bunt_set_given() {
@@ -214,7 +214,7 @@ thenn() {
     local cmd
     local isNumber='^[0-9]+$'
 
-    if [ -z "$bunt_xdescribe" ]; then
+    if [ -z "$bunt_xfeature" ]; then
         bunt_given
 
         if [ "$1 $2" == "exit with" ]; then
