@@ -16,7 +16,7 @@ FAIL_COUNT=0
 PATH_BKUP="$PATH"
 
 clear
-printf "\n${TUNDERLINE}${TBLUE}Running specs...${TRESET}\n" 
+printf "\n%b%bRunning specs...%b\n" $TUNDERLINE $TBLUE $TRESET
 
 bunt_error() {
     local callstack=$(caller)
@@ -25,14 +25,14 @@ bunt_error() {
     local message="$1"
     local code="${2:-1}"
 
-    printf "\n${TRED}Error on line ${callstack_lineno} of ${callstack_file}\n"
+    printf "\n%bError on line %d of %s\n" $TRED $callstack_lineno $callstack_file
     if [[ -n "$message" ]] ; then
-        printf "${TRED}Message: ${message}; exiting with status ${code}${TRESET}\n\n"
+        printf "%bMessage: %s; exiting with status %d%b\n\n" $TRED "$message" $code $TRESET
     else
-        printf "${TRED}Exiting with status ${code}${TRESET}\n\n"
+        printf "%bExiting with status %d%b\n\n" $TRED $code $TRESET
     fi
 
-    exit "${code}"
+    exit $code
 }
 
 bunt_finish() {
@@ -55,7 +55,7 @@ bunt_finish() {
 
     msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
 
-    printf "$msg"
+    printf "\n%b" "$msg"
 
     [ $FAIL_COUNT -gt 0 ] && exit 1 || exit 0
 }
@@ -94,24 +94,41 @@ label() {
     local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
     echo
     bunt_printRule
-    printf "\n  $text"
+    printf "\n  %s" "$text"
     bunt_printRule
     echo
 }
 
 describe(){
+    if [ -z "$bunt_focus" ]; then
+        fdescribe "$1"
+    else
+        xdescribe "$1"
+    fi
+}
+
+focus() {
+    bunt_focus=1
+}
+
+fdescribe(){
     bunt_describe_reset
-    bunt_describe_text=$1" "
+    bunt_describe_text="$1 "
 }
 
 xdescribe(){
+    bunt_describe_reset
     bunt_describe_text="Skipping ... $1 "
     bunt_xdescribe=true
 }
 
 it(){
+    local eol="\n"
     bunt_it_reset
-    printf "\n  ${TYELLOW}${bunt_describe_text}${1}${TRESET}\n"
+    if [ -n "$bunt_xdescribe" ]; then
+        eol=""
+    fi
+    printf "\n  %b%s%s%b%b" $TYELLOW "$bunt_describe_text" "$1" $TRESET $eol
 }
 
 bunt_set_given() {
@@ -142,9 +159,9 @@ bunt_printPass(){
 
     while (( "$#" )); do shift; done
 
-    printf "${TGREEN}${TCHECKMARK}  "
-    [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TGREEN}"
-    printf "%b${TRESET}\n" "$msg"
+    printf "%b%b  " $TGREEN $TCHECKMARK
+    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $TBLUE "$bunt_given_text" $TRESET $TGREEN
+    printf "%b%b\n" "$msg" $TRESET
 
     (( PASS_COUNT++ ))
 }
@@ -155,14 +172,14 @@ bunt_printFail(){
 
     while (( "$#" )); do shift; done
 
-    printf "${TRED}${TXMARK}  "
-    [ -n  "$bunt_given_text" ] && printf "given \n${TBLUE}${bunt_given_text}${TRESET}\n       ${TRED}"
+    printf "%b%b  " ${TRED} ${TXMARK}
+    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $TBLUE $bunt_given_text $TRESET $TRED
     msg+="\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
         ((frame++));
     done
-    printf "%b${TRESET}\n" "$msg"
+    printf "%b%b\n" "$msg" $TRESET
 
     (( FAIL_COUNT++ ))
 }
@@ -371,7 +388,7 @@ createSpy() {
             echo \$arg >> \"${tmp_args}-\${call_count}\"
         done
         IFS=\$IFS_bkup
-        [ -n \"$output\" ] && printf \"${output}\" && return \"${code}\"" > "${tmp_dir}/${name}"
+        [ -n \"$output\" ] && printf \"%b\" \"$output\" && return \"${code}\"" > "${tmp_dir}/${name}"
 
     chmod +x "${tmp_dir}/${name}"
 

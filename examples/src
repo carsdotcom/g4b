@@ -28,7 +28,7 @@ outputStuff() {
 retry() {
     local n=0
     local try=$1
-    local cmd="${@: 2}"
+    local cmd="${@:2}"
     while : ; do
         $cmd && exit || {
             echo "Command Fail.."
@@ -44,5 +44,5 @@ callsSystemCmd() {
     # putting example of system command being called from subshell just to show we can spy even in the most difficult cases
     (curl --silent -X GET http://localhost/foo)
     # second call so we can validate multiple calls with different arguments
-    (curl -X POST http://localhost/bar)
+    curl -X POST http://localhost/bar
 }
