@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 while (( "$#" )); do shift; done
 
-TUNDERLINE=$(tput sgr 0 1)
-TRED=$(tput setaf 1)
-TGREEN=$(tput setaf 2)
-TYELLOW=$(tput setaf 3)
-TBLUE=$(tput setaf 4)
-TRESET=$(tput sgr0)
-TCHECKMARK="\xe2\x9c\x93"
-TXMARK="\xe2\x9c\x95"
-TLINE="\xe2\x8e\xaf"
-TOTAL_COUNT=0
-PASS_COUNT=0
-FAIL_COUNT=0
-PATH_BKUP="$PATH"
+BUNT_UNDERLINE=$(tput sgr 0 1)
+BUNT_RED=$(tput setaf 1)
+BUNT_GREEN=$(tput setaf 2)
+BUNT_YELLOW=$(tput setaf 3)
+BUNT_BLUE=$(tput setaf 4)
+BUNT_RESET=$(tput sgr0)
+BUNT_CHECKMARK="\xe2\x9c\x93"
+BUNT_XMARK="\xe2\x9c\x95"
+BUNT_TOTAL_COUNT=0
+BUNT_PASS_COUNT=0
+BUNT_FAIL_COUNT=0
+BUNT_PATH_BKUP="$PATH"
+BUNT_RESERVED_WORDS='bunt_|BUNT_|section\s?\(|feature\s?\(|ffeature\s?\(|xfeature\s?\(|scenario\s?\(|given\s?\(|teardown\s?\(|when\s?\(|thenn\s?\(|load_src\s?\(|load_specs\s?\('
 
 clear
-printf "\n%b%bRunning specs...%b\n" $TUNDERLINE $TBLUE $TRESET
+printf "\n%b%bRunning specs...%b\n" $BUNT_UNDERLINE $BUNT_BLUE $BUNT_RESET
 
 bunt_error() {
     local callstack=$(caller)
@@ -25,11 +25,11 @@ bunt_error() {
     local message="$1"
     local code="${2:-1}"
 
-    printf "\n%bError on line %d of %s\n" $TRED $callstack_lineno $callstack_file
+    printf "\n%bError on line %d of %s\n" $BUNT_RED $callstack_lineno $callstack_file
     if [[ -n "$message" ]] ; then
-        printf "%bMessage: %s; exiting with status %d%b\n\n" $TRED "$message" $code $TRESET
+        printf "%bMessage: %s; exiting with status %d%b\n\n" $BUNT_RED "$message" $code $BUNT_RESET
     else
-        printf "%bExiting with status %d%b\n\n" $TRED $code $TRESET
+        printf "%bExiting with status %d%b\n\n" $BUNT_RED $code $BUNT_RESET
     fi
 
     exit $code
@@ -41,26 +41,26 @@ bunt_finish() {
 
     [ $code -ne 0 ] && return $code
 
-    if [ $PASS_COUNT -gt 0 ]; then
-        msg+="${TGREEN}${TCHECKMARK} ${PASS_COUNT} passed"
+    if [ $BUNT_PASS_COUNT -gt 0 ]; then
+        msg+="${BUNT_GREEN}${BUNT_CHECKMARK} ${BUNT_PASS_COUNT} passed"
     fi
 
-    if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
-        msg+="${TBLUE} and "
+    if [ $BUNT_PASS_COUNT -gt 0 ] && [ $BUNT_FAIL_COUNT -gt 0 ]; then
+        msg+="${BUNT_BLUE} and "
     fi
 
-    if [ $FAIL_COUNT -gt 0 ]; then
-        msg+="${TRED}${TXMARK} ${FAIL_COUNT} failed"
+    if [ $BUNT_FAIL_COUNT -gt 0 ]; then
+        msg+="${BUNT_RED}${BUNT_XMARK} ${BUNT_FAIL_COUNT} failed"
     fi
 
-    msg+="${TBLUE} of ${TBLUE}${TOTAL_COUNT} total specs${TRESET}\n\n"
+    msg+="${BUNT_BLUE} of ${BUNT_BLUE}${BUNT_TOTAL_COUNT} total specs${BUNT_RESET}\n\n"
 
     printf "\n%b" "$msg"
 
-    [ $FAIL_COUNT -gt 0 ] && exit 1 || exit 0
+    [ $BUNT_FAIL_COUNT -gt 0 ] && exit 1 || exit 0
 }
 
-setTraps() {
+bunt_set_traps() {
     local trap_func="${1:-bunt_finish}"
     local trap_err_func="${1:-bunt_error}"
 
@@ -69,7 +69,22 @@ setTraps() {
     trap - ERR
     trap $trap_err_func ERR
 }
-setTraps
+bunt_set_traps
+
+load_src() {
+    local src="$(cat $1)"
+    if [ -z "$(echo "$src" | grep -E $BUNT_RESERVED_WORDS)" ]; then
+        source $1
+    else
+        echo "Check source for reserved words"
+        exit 1
+    fi
+}
+
+load_specs() {
+    test -n "$(cat $1 | grep -E '^ffeature')" && bunt_focus=1
+    source $1
+}
 
 bunt_feature_reset() {
     unset bunt_xfeature
@@ -87,15 +102,15 @@ bunt_expect_reset() {
     unset bunt_pass
     bunt_expected_call_count=1
     bunt_actual_call_count=0
-    PATH="$PATH_BKUP"
+    PATH="$BUNT_PATH_BKUP"
 }
 
 section() {
     local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
     echo
-    bunt_printRule
+    bunt_print_rule
     printf "\n  %s" "$text"
-    bunt_printRule
+    bunt_print_rule
     echo
 }
 
@@ -105,10 +120,6 @@ feature(){
     else
         xfeature "$1"
     fi
-}
-
-focus() {
-    bunt_focus=1
 }
 
 ffeature(){
@@ -128,11 +139,12 @@ scenario(){
     if [ -n "$bunt_xfeature" ]; then
         eol=""
     fi
-    printf "\n  %b%s%s%b%b" $TYELLOW "$bunt_feature_text" "$1" $TRESET $eol
+    printf "\n  %b%s%s%b%b" $BUNT_YELLOW "$bunt_feature_text" "$1" $BUNT_RESET $eol
 }
 
 bunt_set_given() {
     bunt_given_text="$(declare -f given | tail -r | tail -n +2 | tail -r | tail -n +3 | while read line; do echo "   $line"; done)"
+    # bunt_given_text="$(declare -f given | grep -v -E '^\S+ \(\)|^[\{\}]' | while read line; do echo "   $line"; done)"
 }
 
 bunt_given() {
@@ -144,7 +156,7 @@ bunt_teardown() {
     bunt_expect_reset
 }
 
-bunt_printRule() {
+bunt_print_rule() {
     local cols
 
     cols=$(tput cols)
@@ -154,48 +166,48 @@ bunt_printRule() {
     eval printf %.0s- '{1..'"$cols"\}
 }
 
-bunt_printPass(){
+bunt_print_pass(){
     local msg="$1"
 
     while (( "$#" )); do shift; done
 
-    printf "%b%b  " $TGREEN $TCHECKMARK
-    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $TBLUE "$bunt_given_text" $TRESET $TGREEN
-    printf "%b%b\n" "$msg" $TRESET
+    printf "%b%b  " $BUNT_GREEN $BUNT_CHECKMARK
+    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $BUNT_BLUE "$bunt_given_text" $BUNT_RESET $BUNT_GREEN
+    printf "%b%b\n" "$msg" $BUNT_RESET
 
-    (( PASS_COUNT++ ))
+    (( BUNT_PASS_COUNT++ ))
 }
 
-bunt_printFail(){
+bunt_print_fail(){
     local frame=0
     local msg="$1"
 
     while (( "$#" )); do shift; done
 
-    printf "%b%b  " ${TRED} ${TXMARK}
-    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $TBLUE $bunt_given_text $TRESET $TRED
+    printf "%b%b  " $BUNT_RED $BUNT_XMARK
+    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $BUNT_BLUE $bunt_given_text $BUNT_RESET $BUNT_RED
     msg+="\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
         ((frame++));
     done
-    printf "%b%b\n" "$msg" $TRESET
+    printf "%b%b\n" "$msg" $BUNT_RESET
 
-    (( FAIL_COUNT++ ))
+    (( BUNT_FAIL_COUNT++ ))
 }
 
-bunt_printResult(){
+bunt_print_result(){
     local msg="$1"
 
     printf "    "
 
     if [ "${bunt_pass:-0}" -eq 0 ]; then
-        bunt_printFail "$msg"
+        bunt_print_fail "$msg"
     else
-        bunt_printPass "$msg"
+        bunt_print_pass "$msg"
     fi
 
-    (( TOTAL_COUNT++ ))
+    (( BUNT_TOTAL_COUNT++ ))
 }
 
 when() {
@@ -218,7 +230,7 @@ thenn() {
         bunt_given
 
         if [ "$1 $2" == "exit with" ]; then
-            expectToExitWith $3
+            bunt_expect_to_exit_with $3
 
         elif [ "$2 $3 $4" == "should be called" ]; then
             cmd=( $1 )
@@ -252,20 +264,20 @@ thenn() {
                 fi
             fi
             bunt_then=( "${cmd[@]}" )
-            expectToHaveBeenCalled
+            bunt_expect_to_have_been_called
 
         elif [ "$1 $2 $3" == "output should match" ]; then
             if [ $# -gt 3 ]; then
-                expectOutputToMatch 0 "${@:4}"
+                bunt_expect_output_to_match 0 "${@:4}"
             else
-                expectOutputToMatch 0
+                bunt_expect_output_to_match 0
             fi
 
         elif [ "$1 $2 $3 $4" == "output should not match" ]; then
             if [ $# -gt 4 ]; then
-                expectOutputToMatch 1 "${@:5}"
+                bunt_expect_output_to_match 1 "${@:5}"
             else
-                expectOutputToMatch 1
+                bunt_expect_output_to_match 1
             fi
 
         fi
@@ -274,7 +286,7 @@ thenn() {
     fi
 }
 
-expectToExitWith() {
+bunt_expect_to_exit_with() {
     local code
     local cmd
     local msg
@@ -314,10 +326,10 @@ expectToExitWith() {
        bunt_pass=0
     fi
 
-    bunt_printResult "$msg"
+    bunt_print_result "$msg"
 }
 
-expectOutputToMatch() {
+bunt_expect_output_to_match() {
     local invert
     local invert_text
     local expected_output
@@ -365,10 +377,10 @@ expectOutputToMatch() {
         fi
     fi
 
-    bunt_printResult "$msg"
+    bunt_print_result "$msg"
 }
 
-createSpy() {
+bunt_create_spy() {
     local name=$1
     local output=$1
     local code=$1
@@ -397,7 +409,7 @@ createSpy() {
     echo $tmp_calls
 }
 
-expectToHaveBeenCalled() {
+bunt_expect_to_have_been_called() {
     local subject
     local subject_cmd_name
     local expected_args
@@ -444,7 +456,7 @@ expectToHaveBeenCalled() {
     # replace with spy
     subject_output=$("${subject[@]}" 2>&1)
     subject_code=$?
-    IFS=$'\n' tmp_files=( $(createSpy "$subject_cmd_name" "$subject_output" "$subject_code") )
+    IFS=$'\n' tmp_files=( $(bunt_create_spy "$subject_cmd_name" "$subject_output" "$subject_code") )
     local tmp_dir="${tmp_files[0]}"
     local tmp_args="${tmp_files[1]}"
     local tmp_calls="${tmp_files[2]}"
@@ -487,7 +499,7 @@ expectToHaveBeenCalled() {
     fi
 
     # print result
-    bunt_printResult "$msg"
+    bunt_print_result "$msg"
 
 }
 

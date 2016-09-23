@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 source ./bunt
-source ./examples/src
-source ./examples/specs
+load_src ./examples/src
+load_specs ./examples/specs
