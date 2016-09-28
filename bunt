@@ -382,8 +382,8 @@ bunt_expect_output_to_match() {
 
 bunt_create_spy() {
     local name=$1
-    local output=$1
-    local code=$1
+    local output=$2
+    local code=$3
 
     while (( "$#" )); do shift; done
 
@@ -400,7 +400,10 @@ bunt_create_spy() {
             echo \$arg >> \"${tmp_args}-\${call_count}\"
         done
         IFS=\$IFS_bkup
-        [ -n \"$output\" ] && printf \"%b\" \"$output\" && return \"${code}\"" > "${tmp_dir}/${name}"
+        cat <<'EOD'
+$output
+EOD
+        exit \"${code}\"" > "${tmp_dir}/${name}"
 
     chmod +x "${tmp_dir}/${name}"
 
@@ -466,7 +469,13 @@ bunt_expect_to_have_been_called() {
     condition_script_name="$(mktemp -t tmp)"
     echo "$(declare -f ${condition_cmd_name} | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$condition_script_name"
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
-    if [ -n "$BUNT_DEBUG" ]; then "${condition_script[@]}"; else "${condition_script[@]}" > /dev/null 2>&1; fi
+    if [ -n "$BUNT_DEBUG" ]; then
+        echo "subject script: ${tmp_dir}/${subject_cmd_name}"
+        echo "condition script: ${condition_script[@]}"
+        "${condition_script[@]}"
+    else
+        "${condition_script[@]}" > /dev/null 2>&1
+    fi
 
     # restore original subject, if function
     if [ "$(type -t "bunt_bkup_${subject_cmd_name}")" == "function" ]; then
@@ -474,7 +483,6 @@ bunt_expect_to_have_been_called() {
         unset -f "bunt_bkup_${subject_cmd_name}"
     fi
 
-    if [ -n "$BUNT_DEBUG" ]; then echo "subject script: ${tmp_dir}/${subject_cmd_name}"; echo "condition script: ${condition_script[@]}"; fi
 
     # check call count
     bunt_actual_call_count="$(cat "$tmp_calls")"
