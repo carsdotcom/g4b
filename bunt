@@ -15,6 +15,9 @@ BUNT_FAIL_COUNT=0
 BUNT_PATH_BKUP="$PATH"
 BUNT_RESERVED_WORDS='bunt_|BUNT_|section\s?\(|feature\s?\(|ffeature\s?\(|xfeature\s?\(|scenario\s?\(|given\s?\(|teardown\s?\(|when\s?\(|thenn\s?\(|load_src\s?\(|load_specs\s?\('
 
+bunt_expected_call_count=1
+bunt_actual_call_count=0
+
 clear
 printf "\n%b%bRunning specs...%b\n" $BUNT_UNDERLINE $BUNT_BLUE $BUNT_RESET
 
