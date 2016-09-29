@@ -470,8 +470,12 @@ bunt_expect_to_have_been_called() {
 
     # source condition as script
     condition_script_name="$(mktemp -t tmp)"
-    echo "$(declare -f ${condition_cmd_name} | tail -r | tail -n +2 | tail -r | tail -n +3)" > "$condition_script_name"
+    printf "" >| "$condition_script_name"
+    echo "$(declare -f ${condition_cmd_name})" >> "$condition_script_name"
+    echo "${condition_cmd_name} \"\$@\"" >> "$condition_script_name"
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
+
+    alias exit='return'
     if [ -n "$BUNT_DEBUG" ]; then
         echo "subject script: ${tmp_dir}/${subject_cmd_name}"
         echo "condition script: ${condition_script[@]}"
@@ -479,6 +483,7 @@ bunt_expect_to_have_been_called() {
     else
         "${condition_script[@]}" > /dev/null 2>&1
     fi
+    unalias exit
 
     # restore original subject, if function
     if [ "$(type -t "bunt_bkup_${subject_cmd_name}")" == "function" ]; then
