@@ -227,7 +227,6 @@ when() {
 
 thenn() {
     local cmd
-    local isNumber='^[0-9]+$'
 
     if [ -z "$bunt_xfeature" ]; then
         bunt_given
@@ -250,7 +249,7 @@ thenn() {
                     IFS=$IFS_bkup
 
                     IFS=% cmd+=( ${@:6} )
-                elif [[ $5 =~ $isNumber ]] && [ "$6" == "times" ]; then
+                elif [[ $5 =~ ^[0-9]+$ ]] && [[ $6 =~ ^times?$ ]]; then
                     bunt_expected_call_count=$5
 
                     if [ "$7" == "with" ]; then
@@ -439,19 +438,28 @@ bunt_expect_to_have_been_called() {
     condition_cmd_name="${condition[0]}"
 
     expected_args="${bunt_then[*]:1}"
+
     if [ -n "${subject[*]:1}" ]; then
         expected_args_text="\`$(cat "$bunt_expected_args_tmp" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\` \`/g')\`"
     fi
 
     msg="when \`${condition_cmd_name}\` is called"
+
     if [ "${#condition[@]}" -gt 1 ]; then
         msg+=" with$(printf " \`%s\`" "${condition[@]:1}")"
     fi
+
     msg+="\n       then \`${subject_cmd_name}\` should be called"
+
     if [ "${#subject[@]}" -gt 1 ]; then
         msg+=" with $expected_args_text"
     fi
-    msg+=" ${bunt_expected_call_count} times"
+
+    if [ "${bunt_expected_call_count}" -eq 1 ]; then
+        msg+=" ${bunt_expected_call_count} time"
+    else
+        msg+=" ${bunt_expected_call_count} times"
+    fi
 
     # backup original subject, if function
     if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
