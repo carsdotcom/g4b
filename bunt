@@ -447,7 +447,7 @@ bunt_expect_to_have_been_called() {
     expected_args="${bunt_then[*]:1}"
 
     if [ -n "${subject[*]:1}" ]; then
-        expected_args_text="\`$(cat "$bunt_expected_args_tmp" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/\` \`/g')\`"
+        expected_args_text="$(cat "$bunt_expected_args_tmp" | while read line; do printf "\`%b\` " "$line"; done)"
     fi
 
     msg="when \`${condition_cmd_name}\` is called"
