@@ -15,6 +15,7 @@ BUNT_FAIL_COUNT=0
 BUNT_PATH_BKUP="$PATH"
 BUNT_RESERVED_WORDS='bunt_|BUNT_|section\s?\(|feature\s?\(|ffeature\s?\(|xfeature\s?\(|scenario\s?\(|given\s?\(|teardown\s?\(|when\s?\(|thenn\s?\(|load_src\s?\(|load_specs\s?\('
 
+bunt_specific_call_count=0
 bunt_expected_call_count=1
 bunt_actual_call_count=0
 
@@ -103,6 +104,7 @@ bunt_expect_reset() {
     unset bunt_when
     unset bunt_then
     unset bunt_pass
+    bunt_specific_call_count=0
     bunt_expected_call_count=1
     bunt_actual_call_count=0
     bunt_actual_vs_expected_msg=""
@@ -254,6 +256,7 @@ thenn() {
 
                     IFS=% cmd+=( ${@:6} )
                 elif [[ $5 =~ ^[0-9]+$ ]] && [[ $6 =~ ^times?$ ]]; then
+                    bunt_specific_call_count=1
                     bunt_expected_call_count=$5
 
                     if [ "$7" == "with" ]; then
@@ -506,16 +509,6 @@ bunt_expect_to_have_been_called() {
     fi
 
 
-    # check call count
-    bunt_actual_call_count="$(cat "$tmp_calls")"
-    bunt_actual_call_count="${bunt_actual_call_count:-0}"
-    if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ]; then
-        bunt_pass=1
-    else
-        msg+="\n       expected ${bunt_expected_call_count} calls but saw ${bunt_actual_call_count}"
-        bunt_pass=0
-    fi
-
     # check arguments
     if [ -n "${subject[*]:1}" ]; then
         for ((i=1;i<=${bunt_actual_call_count};i++)); do
@@ -529,6 +522,16 @@ bunt_expect_to_have_been_called() {
                 bunt_pass=0
             fi
         done
+    fi
+
+    # check call count
+    bunt_actual_call_count="$(cat "$tmp_calls")"
+    bunt_actual_call_count="${bunt_actual_call_count:-0}"
+    if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ] || [ "$bunt_specific_call_count" = 0 ]; then
+        bunt_pass=1
+    else
+        msg+="\n       expected ${bunt_expected_call_count} calls but saw ${bunt_actual_call_count}"
+        bunt_pass=0
     fi
 
     # print result
