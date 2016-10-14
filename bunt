@@ -105,6 +105,7 @@ bunt_expect_reset() {
     unset bunt_pass
     bunt_expected_call_count=1
     bunt_actual_call_count=0
+    bunt_actual_vs_expected_msg=""
     PATH="$BUNT_PATH_BKUP"
 }
 
@@ -189,6 +190,9 @@ bunt_print_fail(){
 
     printf "%b%b  " $BUNT_RED $BUNT_XMARK
     [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $BUNT_BLUE $bunt_given_text $BUNT_RESET $BUNT_RED
+
+    msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
+
     msg+="\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
@@ -520,6 +524,8 @@ bunt_expect_to_have_been_called() {
                 bunt_pass=1
                 break
             else
+                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
+                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
                 bunt_pass=0
             fi
         done
