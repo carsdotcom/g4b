@@ -462,10 +462,12 @@ bunt_expect_to_have_been_called() {
         msg+=" with $expected_args_text"
     fi
 
-    if [ "${bunt_expected_call_count}" -eq 1 ]; then
-        msg+=" ${bunt_expected_call_count} time"
-    else
-        msg+=" ${bunt_expected_call_count} times"
+    if [ "$bunt_specific_call_count" = 1 ]; then
+        if [ "${bunt_expected_call_count}" -eq 1 ]; then
+            msg+=" ${bunt_expected_call_count} time"
+        else
+            msg+=" ${bunt_expected_call_count} times"
+        fi
     fi
 
     # capture output and exit status
