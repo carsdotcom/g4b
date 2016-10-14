@@ -461,6 +461,10 @@ bunt_expect_to_have_been_called() {
         msg+=" ${bunt_expected_call_count} times"
     fi
 
+    # capture output and exit status
+    subject_output=$("${subject[@]}" 2>&1)
+    subject_code=$?
+
     # backup original subject, if function
     if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
         eval "$(echo "bunt_bkup_${subject_cmd_name}()" && declare -f "${subject_cmd_name}" | tail -n +2)"
@@ -468,8 +472,6 @@ bunt_expect_to_have_been_called() {
     fi
 
     # replace with spy
-    subject_output=$("${subject[@]}" 2>&1)
-    subject_code=$?
     IFS=$'\n' tmp_files=( $(bunt_create_spy "$subject_cmd_name" "$subject_output" "$subject_code") )
     local tmp_dir="${tmp_files[0]}"
     local tmp_args="${tmp_files[1]}"
@@ -502,6 +504,7 @@ bunt_expect_to_have_been_called() {
 
     # check call count
     bunt_actual_call_count="$(cat "$tmp_calls")"
+    bunt_actual_call_count="${bunt_actual_call_count:-0}"
     if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ]; then
         bunt_pass=1
     else
