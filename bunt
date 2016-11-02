@@ -95,7 +95,7 @@ bunt_feature_reset() {
 }
 
 bunt_scenario_reset() {
-    unset -f given
+    unset -f setup
     unset -f teardown
 }
 
@@ -148,13 +148,12 @@ scenario(){
     printf "\n  %b%s%s%b%b" $BUNT_YELLOW "$bunt_feature_text" "$1" $BUNT_RESET $eol
 }
 
-bunt_set_given() {
-    bunt_given_text="$(declare -f given | tail -r | tail -n +2 | tail -r | tail -n +3 | while read line; do echo "   $line"; done)"
-    # bunt_given_text="$(declare -f given | grep -v -E '^\S+ \(\)|^[\{\}]' | while read line; do echo "   $line"; done)"
+given() {
+    IFS=$' ' bunt_given_text="$*"
 }
 
-bunt_given() {
-    declare -f given > /dev/null && bunt_set_given && given
+bunt_setup() {
+    declare -f setup > /dev/null && setup
 }
 
 bunt_teardown() {
@@ -178,7 +177,12 @@ bunt_print_pass(){
     while (( "$#" )); do shift; done
 
     printf "%b%b  " $BUNT_GREEN $BUNT_CHECKMARK
-    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $BUNT_BLUE "$bunt_given_text" $BUNT_RESET $BUNT_GREEN
+    [ -n  "$bunt_given_text" ] && printf "given %s\n       " "$bunt_given_text"
+
+    if [ -n "$BUNT_DEBUG" ]; then
+        msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
+    fi
+
     printf "%b%b\n" "$msg" $BUNT_RESET
 
     (( BUNT_PASS_COUNT++ ))
@@ -191,7 +195,7 @@ bunt_print_fail(){
     while (( "$#" )); do shift; done
 
     printf "%b%b  " $BUNT_RED $BUNT_XMARK
-    [ -n  "$bunt_given_text" ] && printf "given \n%b%s%b\n       %b" $BUNT_BLUE $bunt_given_text $BUNT_RESET $BUNT_RED
+    [ -n  "$bunt_given_text" ] && printf "given %s\n       " "$bunt_given_text"
 
     msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
 
@@ -235,7 +239,7 @@ thenn() {
     local cmd
 
     if [ -z "$bunt_xfeature" ]; then
-        bunt_given
+        bunt_setup
 
         if [ "$1 $2" == "exit with" ]; then
             bunt_expect_to_exit_with $3
@@ -246,7 +250,7 @@ thenn() {
                 if [ "$5" == "with" ]; then
 
                     # capture expected arguments
-                    bunt_expected_args_tmp=$(mktemp -t tmp)
+                    bunt_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
                     IFS_bkup=$IFS
                     IFS=$'\n'
                     for arg in "${@:6}"; do
@@ -261,7 +265,7 @@ thenn() {
 
                     if [ "$7" == "with" ]; then
                         # capture expected arguments
-                        bunt_expected_args_tmp=$(mktemp -t tmp)
+                        bunt_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
                         IFS_bkup=$IFS
                         IFS=$'\n'
                         for arg in "${@:8}"; do
@@ -396,9 +400,9 @@ bunt_create_spy() {
 
     while (( "$#" )); do shift; done
 
-    local tmp_dir="$(mktemp -t tmp -d)"
-    local tmp_args=$(mktemp -t tmp)
-    local tmp_calls=$(mktemp -t tmp)
+    local tmp_dir="$(mktemp -d 2>/dev/null || mktemp -t tmp -d)"
+    local tmp_args=$(mktemp 2>/dev/null || mktemp -t tmp)
+    local tmp_calls=$(mktemp 2>/dev/null || mktemp -t tmp)
 
     echo "call_count=\$(cat \"$tmp_calls\" 2>/dev/null || echo 0)
         (( call_count++ ))
@@ -488,7 +492,7 @@ bunt_expect_to_have_been_called() {
     PATH="${tmp_dir}:${PATH}"
 
     # source condition as script
-    condition_script_name="$(mktemp -t tmp)"
+    condition_script_name="$(mktemp 2>/dev/null || mktemp -t tmp)"
     printf "" >| "$condition_script_name"
     echo "$(declare -f ${condition_cmd_name})" >> "$condition_script_name"
     echo "${condition_cmd_name} \"\$@\"" >> "$condition_script_name"
@@ -510,27 +514,35 @@ bunt_expect_to_have_been_called() {
         unset -f "bunt_bkup_${subject_cmd_name}"
     fi
 
+    bunt_actual_call_count="$(cat "$tmp_calls")"
+    bunt_actual_call_count="${bunt_actual_call_count:-0}"
 
     # check arguments
     if [ -n "${subject[*]:1}" ]; then
         for ((i=1;i<=${bunt_actual_call_count};i++)); do
-            if [ -n "$BUNT_DEBUG" ]; then echo "actual args: $(cat "${tmp_args}-$i")"; echo "expected args: $(cat "$bunt_expected_args_tmp")"; fi
+            bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
+            bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
             if [ -z "$(diff "$bunt_expected_args_tmp" "${tmp_args}-$i")" ]; then
+                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_GREEN $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
+                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_GREEN $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
                 bunt_pass=1
-                break
             else
                 bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
                 bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-                bunt_pass=0
+                bunt_pass="${bunt_pass:-0}"
             fi
         done
     fi
 
     # check call count
-    bunt_actual_call_count="$(cat "$tmp_calls")"
-    bunt_actual_call_count="${bunt_actual_call_count:-0}"
-    if [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ] || [ "$bunt_specific_call_count" = 0 ]; then
-        bunt_pass=1
+    if [ "$bunt_expected_call_count" -ne 0 ] && [ "$bunt_actual_call_count" -eq 0 ]; then
+        bunt_pass=0
+    elif [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ] || [ "$bunt_specific_call_count" = 0 ]; then
+        if [ "${bunt_pass:-1}" -eq 1 ]; then
+            bunt_pass=1
+        else
+            bunt_pass=0
+        fi
     else
         msg+="\n       expected ${bunt_expected_call_count} calls but saw ${bunt_actual_call_count}"
         bunt_pass=0

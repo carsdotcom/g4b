@@ -7,30 +7,30 @@ feature "testMe"
 
     scenario "should exit 0 when it receives valid arguments"
 
-        when testMe is called with "a b" "c"
+        when testMe is called with "a b" c
         thenn exit with 0
 
-        when testMe is called with "a b" "c"
+        when testMe is called with "a b" c
         thenn exit with 0
 
     scenario "should exit 1 when it receives bad arguments"
 
-        when testMe is called with "z" "z"
+        when testMe is called with z z
         thenn exit with 1
 
-        when testMe is called with "a" "b" "c"
+        when testMe is called with a b c
         thenn exit with 1
 
 feature "testMeWrapper"
 
     scenario "should pass the arguments but reverse them"
 
-        when testMeWrapper is called with "a b" "c"
-        thenn testMe should be called with "c" "a b"
+        when testMeWrapper is called with "a b" c
+        thenn testMe should be called with c "a b"
 
     scenario "should have desired output"
 
-        given() {
+        setup() {
             FOO="bar"
         }
 
@@ -38,8 +38,9 @@ feature "testMeWrapper"
             unset FOO
         }
 
-        when testMe is called with "a b" "c"
-        thenn output should match "bar"
+        given FOO is bar
+        when testMe is called with "a b" c
+        thenn output should match bar
 
 feature "outputStuff"
 
@@ -58,7 +59,7 @@ feature "retry"
 
     scenario "should call given function"
 
-        given() {
+        setup() {
             foo() {
                 return 0
             }
@@ -73,7 +74,7 @@ feature "retry"
 
     scenario "should call given function n number of times"
 
-        given() {
+        setup() {
             foo() {
                 return 1
             }
@@ -83,6 +84,7 @@ feature "retry"
             unset -f foo
         }
 
+        given foo returns 1
         when retry is called with 3 foo
         thenn foo should be called 3 times
 
@@ -106,26 +108,26 @@ feature "testMe"
 
     scenario "should exit 0 when it receives valid arguments"
 
-        when testMe is called with "a" "z"
+        when testMe is called with a z
         thenn exit with 0 # will fail
 
 
     scenario "should exit 1 when it receives bad arguments"
 
-        when testMe is called with "a b" "c"
+        when testMe is called with "a b" c
         thenn exit with 1 # will fail
 
 feature "testMeWrapper"
 
     scenario "should pass the arguments but reverse them"
 
-        when testMeWrapper is called with "a b" "c"
-        thenn testMe should be called with "a b" "c" # will fail
+        when testMeWrapper is called with "a b" c
+        thenn testMe should be called with "a b" c # will fail
 
 
     scenario "should have desired output"
 
-        given() {
+        setup() {
             FOO="bar"
         }
 
@@ -133,25 +135,26 @@ feature "testMeWrapper"
             unset FOO
         }
 
-        when testMe is called with "a b" "c"
-        thenn output should match "foo" # will fail
+        given FOO is bar
+        when testMe is called with "a b" c
+        thenn output should match foo # will fail
 
 feature "outputStuff"
 
     scenario "should not output errors"
 
-        when outputStuff is called with "foo"
-        thenn output should not match "error" # will fail
+        when outputStuff is called with foo
+        thenn output should not match error # will fail
 
-        when outputStuff is called with "multiline"
-        thenn output should match "xyzzy" # will fail
+        when outputStuff is called with multiline
+        thenn output should match xyzzy # will fail
 
 
 feature "retry"
 
     scenario "should call given function n number of times"
 
-        given() {
+        setup() {
             foo() {
                 return 1
             }
@@ -161,5 +164,6 @@ feature "retry"
             unset -f foo
         }
 
+        given foo returns 1
         when retry is called with 3 foo
         thenn foo should be called 4 times
