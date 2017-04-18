@@ -30,7 +30,7 @@ retry() {
     local try=$1
     local cmd="${@:2}"
     while : ; do
-        $cmd && exit || {
+        $cmd && break || {
             echo "Command Fail.."
             ((n++))
             [[ $n -ge $try ]] && return 1

@@ -199,12 +199,12 @@ bunt_print_fail(){
 
     msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
 
-    msg+="\n       Call stack:"
+    msg+="$BUNT_RESET\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
         ((frame++));
     done
-    printf "%b%b\n" "$msg" $BUNT_RESET
+    printf "%b%b\n\n" "$msg" $BUNT_RESET
 
     (( BUNT_FAIL_COUNT++ ))
 }
@@ -494,11 +494,14 @@ bunt_expect_to_have_been_called() {
     # source condition as script
     condition_script_name="$(mktemp 2>/dev/null || mktemp -t tmp)"
     printf "" >| "$condition_script_name"
+    #echo "$(declare -f ${condition_cmd_name} | sed $'3i\\\n\ \ \ \ alias\ exit=\'return\'\n')" >> "$condition_script_name"
+    #echo "$(declare -f ${condition_cmd_name} | sed $'3i\\\n\ \ \ \ exit()\ {}\n')" >> "$condition_script_name"
     echo "$(declare -f ${condition_cmd_name})" >> "$condition_script_name"
     echo "${condition_cmd_name} \"\$@\"" >> "$condition_script_name"
+
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
 
-    alias exit='return'
+    alias exit='return';
     if [ -n "$BUNT_DEBUG" ]; then
         echo "subject script: ${tmp_dir}/${subject_cmd_name}"
         echo "condition script: ${condition_script[@]}"
