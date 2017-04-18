@@ -1,6 +1,6 @@
 # bunt
 
-![bunt](https://git.cars.com/projects/MP/repos/bunt/raw/bat.png?at=refs%2Fheads%2Fmaster)
+![bunt](https://github.com/machellerogden/bunt/raw/master/bat.png)
 
 bunt is a bash unit testing framework with Gherkin-style assertions
 
