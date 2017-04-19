@@ -112,7 +112,7 @@ g4b_expect_reset() {
 }
 
 section() {
-    local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
+    local text="$(echo "$@" | tr '[:lower:]' '[:upper:]')"
     echo
     g4b_print_rule
     printf "\n  %s" "$text"
@@ -122,20 +122,20 @@ section() {
 
 feature(){
     if [ -z "$g4b_focus" ]; then
-        ffeature "$1"
+        ffeature "$(echo "$@")"
     else
-        xfeature "$1"
+        xfeature "$(echo "$@")"
     fi
 }
 
 ffeature(){
     g4b_feature_reset
-    g4b_feature_text="$1 "
+    g4b_feature_text="$(echo "$@") "
 }
 
 xfeature(){
     g4b_feature_reset
-    g4b_feature_text="Skipping ... $1 "
+    g4b_feature_text="Skipping ... $(echo "$@") "
     g4b_xfeature=true
 }
 
@@ -145,7 +145,7 @@ scenario(){
     if [ -n "$g4b_xfeature" ]; then
         eol=""
     fi
-    printf "\n  %b%s%s%b%b" $G4B_YELLOW "$g4b_feature_text" "$1" $G4B_RESET $eol
+    printf "\n  %b%s%s%b%b" $G4B_YELLOW "$g4b_feature_text" "$(echo "$@")" $G4B_RESET $eol
 }
 
 given() {
@@ -197,9 +197,11 @@ g4b_print_fail(){
     printf "%b%b  " $G4B_RED $G4B_XMARK
     [ -n  "$g4b_given_text" ] && printf "given %s\n       " "$g4b_given_text"
 
-    msg+="\n$(echo "$g4b_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
+    if [ -n "$g4b_actual_vs_expected_msg" ]; then
+        msg+="\n$(echo "$g4b_actual_vs_expected_msg" | while read line; do echo "       $line"; done)"
+    fi
 
-    msg+="$G4B_RESET\n       Call stack:"
+    msg+="$G4B_RESET\n\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
         ((frame++));
@@ -384,7 +386,6 @@ g4b_expect_output_to_match() {
         if [ $(echo "$cmd_output" | grep -c '$') -gt 1 ]; then
             msg+="\n       expected output to${invert_text} match \`$expected_output\`. actual was:\n\n"
             msg+=$(echo "$cmd_output" | while read line; do echo "         $line"; done)
-            msg+="\n"
         else
             msg+="\n       expected output${invert_text} to match \`$expected_output\`. actual was \`$cmd_output\`"
         fi

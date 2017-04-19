@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
 
-section "passing examples"
+section passing examples
 
-feature "testMe"
+feature testMe
 
-    scenario "should exit 0 when it receives valid arguments"
-
-        when testMe is called with "a b" c
-        thenn exit with 0
+    scenario should exit 0 when it receives valid arguments
 
         when testMe is called with "a b" c
         thenn exit with 0
 
-    scenario "should exit 1 when it receives bad arguments"
+        when testMe is called with "a b" c
+        thenn exit with 0
+
+    scenario should exit 1 when it receives bad arguments
 
         when testMe is called with z z
         thenn exit with 1
@@ -21,14 +21,14 @@ feature "testMe"
         when testMe is called with a b c
         thenn exit with 1
 
-feature "testMeWrapper"
+feature testMeWrapper
 
-    scenario "should pass the arguments but reverse them"
+    scenario should pass the arguments but reverse them
 
         when testMeWrapper is called with "a b" c
         thenn testMe should be called with c "a b"
 
-    scenario "should have desired output"
+    scenario should have desired output
 
         setup() {
             FOO="bar"
@@ -42,9 +42,9 @@ feature "testMeWrapper"
         when testMe is called with "a b" c
         thenn output should match bar
 
-feature "outputStuff"
+feature outputStuff
 
-    scenario "should not output errors"
+    scenario should not output errors
 
         when outputStuff is called
         thenn output should not match "error"
@@ -55,9 +55,9 @@ feature "outputStuff"
         when outputStuff is called with "multiline"
         thenn output should not match "xyzzy"
 
-feature "retry"
+feature retry
 
-    scenario "should call given function"
+    scenario should call given function
 
         setup() {
             foo() {
@@ -72,7 +72,7 @@ feature "retry"
         when retry is called with 1 foo
         thenn foo should be called
 
-    scenario "should call given function n number of times"
+    scenario should call given function n number of times
 
         setup() {
             foo() {
@@ -88,9 +88,9 @@ feature "retry"
         when retry is called with 3 foo
         thenn foo should be called 3 times
 
-feature "callsSystemCmd"
+feature callsSystemCmd
 
-    scenario "should call curl"
+    scenario should call curl
 
         when callsSystemCmd is called
         thenn curl should be called with --silent -X GET http://localhost/foo
@@ -102,30 +102,30 @@ feature "callsSystemCmd"
         thenn curl should be called 2 times
 
 
-section "failing examples"
+section failing examples
 
-feature "testMe"
+feature testMe
 
-    scenario "should exit 0 when it receives valid arguments"
+    scenario should exit 0 when it receives valid arguments
 
         when testMe is called with a z
         thenn exit with 0 # will fail
 
 
-    scenario "should exit 1 when it receives bad arguments"
+    scenario should exit 1 when it receives bad arguments
 
         when testMe is called with "a b" c
         thenn exit with 1 # will fail
 
-feature "testMeWrapper"
+feature testMeWrapper
 
-    scenario "should pass the arguments but reverse them"
+    scenario should pass the arguments but reverse them
 
         when testMeWrapper is called with "a b" c
         thenn testMe should be called with "a b" c # will fail
 
 
-    scenario "should have desired output"
+    scenario should have desired output
 
         setup() {
             FOO="bar"
@@ -139,9 +139,9 @@ feature "testMeWrapper"
         when testMe is called with "a b" c
         thenn output should match foo # will fail
 
-feature "outputStuff"
+feature outputStuff
 
-    scenario "should not output errors"
+    scenario should not output errors
 
         when outputStuff is called with foo
         thenn output should not match error # will fail
@@ -150,9 +150,9 @@ feature "outputStuff"
         thenn output should match xyzzy # will fail
 
 
-feature "retry"
+feature retry
 
-    scenario "should call given function n number of times"
+    scenario should call given function n number of times
 
         setup() {
             foo() {
