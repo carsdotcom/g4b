@@ -1,8 +1,8 @@
-# bunt
+# g4b
 
-![bunt](https://github.com/machellerogden/bunt/raw/master/bat.png)
+> Gherkin for Bash
 
-bunt is a bash unit testing framework with Gherkin-style assertions
+g4b is a bash unit testing framework with Gherkin-style assertions
 
 For the time-being, please see examples directory for basic usage patterns. Run the example specs with `./examples/runner` command from the project root.
 

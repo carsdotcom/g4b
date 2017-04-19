@@ -1,83 +1,83 @@
 #!/usr/bin/env bash
 while (( "$#" )); do shift; done
 
-BUNT_UNDERLINE=$(tput sgr 0 1)
-BUNT_RED=$(tput setaf 1)
-BUNT_GREEN=$(tput setaf 2)
-BUNT_YELLOW=$(tput setaf 3)
-BUNT_BLUE=$(tput setaf 4)
-BUNT_RESET=$(tput sgr0)
-BUNT_CHECKMARK="\xe2\x9c\x93"
-BUNT_XMARK="\xe2\x9c\x95"
-BUNT_TOTAL_COUNT=0
-BUNT_PASS_COUNT=0
-BUNT_FAIL_COUNT=0
-BUNT_PATH_BKUP="$PATH"
-BUNT_RESERVED_WORDS='bunt_|BUNT_|section\s?\(|feature\s?\(|ffeature\s?\(|xfeature\s?\(|scenario\s?\(|given\s?\(|teardown\s?\(|when\s?\(|thenn\s?\(|load_src\s?\(|load_specs\s?\('
+G4B_UNDERLINE=$(tput sgr 0 1)
+G4B_RED=$(tput setaf 1)
+G4B_GREEN=$(tput setaf 2)
+G4B_YELLOW=$(tput setaf 3)
+G4B_BLUE=$(tput setaf 4)
+G4B_RESET=$(tput sgr0)
+G4B_CHECKMARK="\xe2\x9c\x93"
+G4B_XMARK="\xe2\x9c\x95"
+G4B_TOTAL_COUNT=0
+G4B_PASS_COUNT=0
+G4B_FAIL_COUNT=0
+G4B_PATH_BKUP="$PATH"
+G4B_RESERVED_WORDS='g4b_|G4B_|section\s?\(|feature\s?\(|ffeature\s?\(|xfeature\s?\(|scenario\s?\(|given\s?\(|teardown\s?\(|when\s?\(|thenn\s?\(|load_src\s?\(|load_specs\s?\('
 
-bunt_specific_call_count=0
-bunt_expected_call_count=1
-bunt_actual_call_count=0
+g4b_specific_call_count=0
+g4b_expected_call_count=1
+g4b_actual_call_count=0
 
 clear
-printf "\n%b%bRunning specs...%b\n" $BUNT_UNDERLINE $BUNT_BLUE $BUNT_RESET
+printf "\n%b%bRunning specs...%b\n" $G4B_UNDERLINE $G4B_BLUE $G4B_RESET
 
-bunt_error() {
+g4b_error() {
     local callstack=$(caller)
     local callstack_lineno=$(echo "$callstack" | awk '{print $1}')
     local callstack_file=$(echo "$callstack" | awk '{print $2}')
     local message="$1"
     local code="${2:-1}"
 
-    printf "\n%bError on line %d of %s\n" $BUNT_RED $callstack_lineno $callstack_file
+    printf "\n%bError on line %d of %s\n" $G4B_RED $callstack_lineno $callstack_file
     if [[ -n "$message" ]] ; then
-        printf "%bMessage: %s; exiting with status %d%b\n\n" $BUNT_RED "$message" $code $BUNT_RESET
+        printf "%bMessage: %s; exiting with status %d%b\n\n" $G4B_RED "$message" $code $G4B_RESET
     else
-        printf "%bExiting with status %d%b\n\n" $BUNT_RED $code $BUNT_RESET
+        printf "%bExiting with status %d%b\n\n" $G4B_RED $code $G4B_RESET
     fi
 
     exit $code
 }
 
-bunt_finish() {
+g4b_finish() {
     local code=$?
     local msg="\n"
 
     [ $code -ne 0 ] && return $code
 
-    if [ $BUNT_PASS_COUNT -gt 0 ]; then
-        msg+="${BUNT_GREEN}${BUNT_CHECKMARK} ${BUNT_PASS_COUNT} passed"
+    if [ $G4B_PASS_COUNT -gt 0 ]; then
+        msg+="${G4B_GREEN}${G4B_CHECKMARK} ${G4B_PASS_COUNT} passed"
     fi
 
-    if [ $BUNT_PASS_COUNT -gt 0 ] && [ $BUNT_FAIL_COUNT -gt 0 ]; then
-        msg+="${BUNT_BLUE} and "
+    if [ $G4B_PASS_COUNT -gt 0 ] && [ $G4B_FAIL_COUNT -gt 0 ]; then
+        msg+="${G4B_BLUE} and "
     fi
 
-    if [ $BUNT_FAIL_COUNT -gt 0 ]; then
-        msg+="${BUNT_RED}${BUNT_XMARK} ${BUNT_FAIL_COUNT} failed"
+    if [ $G4B_FAIL_COUNT -gt 0 ]; then
+        msg+="${G4B_RED}${G4B_XMARK} ${G4B_FAIL_COUNT} failed"
     fi
 
-    msg+="${BUNT_BLUE} of ${BUNT_BLUE}${BUNT_TOTAL_COUNT} total specs${BUNT_RESET}\n\n"
+    msg+="${G4B_BLUE} of ${G4B_BLUE}${G4B_TOTAL_COUNT} total specs${G4B_RESET}\n\n"
 
     printf "\n%b" "$msg"
 
-    [ $BUNT_FAIL_COUNT -gt 0 ] && exit 1 || exit 0
+    [ $G4B_FAIL_COUNT -gt 0 ] && exit 1 || exit 0
 }
 
-bunt_set_traps() {
-    local trap_func="${1:-bunt_finish}"
-    local trap_err_func="${1:-bunt_error}"
+g4b_set_traps() {
+    local trap_func="${1:-g4b_finish}"
+    local trap_err_func="${1:-g4b_error}"
 
     trap - 0 INT TERM
     trap $trap_func 0 INT TERM
     trap - ERR
     trap $trap_err_func ERR
 }
-bunt_set_traps
+g4b_set_traps
 
 load_src() {
     local src="$(cat $1)"
-    if [ -z "$(echo "$src" | grep -E $BUNT_RESERVED_WORDS)" ]; then
+    if [ -z "$(echo "$src" | grep -E $G4B_RESERVED_WORDS)" ]; then
         source $1
     else
         echo "Check source for reserved words"
@@ -86,42 +86,42 @@ load_src() {
 }
 
 load_specs() {
-    test -n "$(cat $1 | grep -E '^ffeature')" && bunt_focus=1
+    test -n "$(cat $1 | grep -E '^ffeature')" && g4b_focus=1
     source $1
 }
 
-bunt_feature_reset() {
-    unset bunt_xfeature
+g4b_feature_reset() {
+    unset g4b_xfeature
 }
 
-bunt_scenario_reset() {
+g4b_scenario_reset() {
     unset -f setup
     unset -f teardown
 }
 
-bunt_expect_reset() {
-    unset bunt_given_text
-    unset bunt_when
-    unset bunt_then
-    unset bunt_pass
-    bunt_specific_call_count=0
-    bunt_expected_call_count=1
-    bunt_actual_call_count=0
-    bunt_actual_vs_expected_msg=""
-    PATH="$BUNT_PATH_BKUP"
+g4b_expect_reset() {
+    unset g4b_given_text
+    unset g4b_when
+    unset g4b_then
+    unset g4b_pass
+    g4b_specific_call_count=0
+    g4b_expected_call_count=1
+    g4b_actual_call_count=0
+    g4b_actual_vs_expected_msg=""
+    PATH="$G4B_PATH_BKUP"
 }
 
 section() {
     local text="$(echo $1 | tr '[:lower:]' '[:upper:]')"
     echo
-    bunt_print_rule
+    g4b_print_rule
     printf "\n  %s" "$text"
-    bunt_print_rule
+    g4b_print_rule
     echo
 }
 
 feature(){
-    if [ -z "$bunt_focus" ]; then
+    if [ -z "$g4b_focus" ]; then
         ffeature "$1"
     else
         xfeature "$1"
@@ -129,39 +129,39 @@ feature(){
 }
 
 ffeature(){
-    bunt_feature_reset
-    bunt_feature_text="$1 "
+    g4b_feature_reset
+    g4b_feature_text="$1 "
 }
 
 xfeature(){
-    bunt_feature_reset
-    bunt_feature_text="Skipping ... $1 "
-    bunt_xfeature=true
+    g4b_feature_reset
+    g4b_feature_text="Skipping ... $1 "
+    g4b_xfeature=true
 }
 
 scenario(){
     local eol="\n"
-    bunt_scenario_reset
-    if [ -n "$bunt_xfeature" ]; then
+    g4b_scenario_reset
+    if [ -n "$g4b_xfeature" ]; then
         eol=""
     fi
-    printf "\n  %b%s%s%b%b" $BUNT_YELLOW "$bunt_feature_text" "$1" $BUNT_RESET $eol
+    printf "\n  %b%s%s%b%b" $G4B_YELLOW "$g4b_feature_text" "$1" $G4B_RESET $eol
 }
 
 given() {
-    IFS=$' ' bunt_given_text="$*"
+    IFS=$' ' g4b_given_text="$*"
 }
 
-bunt_setup() {
+g4b_setup() {
     declare -f setup > /dev/null && setup
 }
 
-bunt_teardown() {
+g4b_teardown() {
     declare -f teardown > /dev/null && teardown
-    bunt_expect_reset
+    g4b_expect_reset
 }
 
-bunt_print_rule() {
+g4b_print_rule() {
     local cols
 
     cols=$(tput cols)
@@ -171,56 +171,56 @@ bunt_print_rule() {
     eval printf %.0s- '{1..'"$cols"\}
 }
 
-bunt_print_pass(){
+g4b_print_pass(){
     local msg="$1"
 
     while (( "$#" )); do shift; done
 
-    printf "%b%b  " $BUNT_GREEN $BUNT_CHECKMARK
-    [ -n  "$bunt_given_text" ] && printf "given %s\n       " "$bunt_given_text"
+    printf "%b%b  " $G4B_GREEN $G4B_CHECKMARK
+    [ -n  "$g4b_given_text" ] && printf "given %s\n       " "$g4b_given_text"
 
-    if [ -n "$BUNT_DEBUG" ]; then
-        msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
+    if [ -n "$G4B_DEBUG" ]; then
+        msg+="\n$(echo "$g4b_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
     fi
 
-    printf "%b%b\n" "$msg" $BUNT_RESET
+    printf "%b%b\n" "$msg" $G4B_RESET
 
-    (( BUNT_PASS_COUNT++ ))
+    (( G4B_PASS_COUNT++ ))
 }
 
-bunt_print_fail(){
+g4b_print_fail(){
     local frame=0
     local msg="$1"
 
     while (( "$#" )); do shift; done
 
-    printf "%b%b  " $BUNT_RED $BUNT_XMARK
-    [ -n  "$bunt_given_text" ] && printf "given %s\n       " "$bunt_given_text"
+    printf "%b%b  " $G4B_RED $G4B_XMARK
+    [ -n  "$g4b_given_text" ] && printf "given %s\n       " "$g4b_given_text"
 
-    msg+="\n$(echo "$bunt_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
+    msg+="\n$(echo "$g4b_actual_vs_expected_msg" | while read line; do echo "       $line"; done)\n"
 
-    msg+="$BUNT_RESET\n       Call stack:"
+    msg+="$G4B_RESET\n       Call stack:"
     while $(caller $frame > /dev/null 2>&1); do
         msg+="\n         $(caller $frame)"
         ((frame++));
     done
-    printf "%b%b\n\n" "$msg" $BUNT_RESET
+    printf "%b%b\n\n" "$msg" $G4B_RESET
 
-    (( BUNT_FAIL_COUNT++ ))
+    (( G4B_FAIL_COUNT++ ))
 }
 
-bunt_print_result(){
+g4b_print_result(){
     local msg="$1"
 
     printf "    "
 
-    if [ "${bunt_pass:-0}" -eq 0 ]; then
-        bunt_print_fail "$msg"
+    if [ "${g4b_pass:-0}" -eq 0 ]; then
+        g4b_print_fail "$msg"
     else
-        bunt_print_pass "$msg"
+        g4b_print_pass "$msg"
     fi
 
-    (( BUNT_TOTAL_COUNT++ ))
+    (( G4B_TOTAL_COUNT++ ))
 }
 
 when() {
@@ -231,18 +231,18 @@ when() {
         if [ $# -gt 4 ]; then
             IFS=% cmd+=( ${@:5} )
         fi
-        IFS=% bunt_when=( "${cmd[@]}" )
+        IFS=% g4b_when=( "${cmd[@]}" )
     fi
 }
 
 thenn() {
     local cmd
 
-    if [ -z "$bunt_xfeature" ]; then
-        bunt_setup
+    if [ -z "$g4b_xfeature" ]; then
+        g4b_setup
 
         if [ "$1 $2" == "exit with" ]; then
-            bunt_expect_to_exit_with $3
+            g4b_expect_to_exit_with $3
 
         elif [ "$2 $3 $4" == "should be called" ]; then
             cmd=( $1 )
@@ -250,56 +250,56 @@ thenn() {
                 if [ "$5" == "with" ]; then
 
                     # capture expected arguments
-                    bunt_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
+                    g4b_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
                     IFS_bkup=$IFS
                     IFS=$'\n'
                     for arg in "${@:6}"; do
-                        echo $arg >> "$bunt_expected_args_tmp"
+                        echo $arg >> "$g4b_expected_args_tmp"
                     done
                     IFS=$IFS_bkup
 
                     IFS=% cmd+=( ${@:6} )
                 elif [[ $5 =~ ^[0-9]+$ ]] && [[ $6 =~ ^times?$ ]]; then
-                    bunt_specific_call_count=1
-                    bunt_expected_call_count=$5
+                    g4b_specific_call_count=1
+                    g4b_expected_call_count=$5
 
                     if [ "$7" == "with" ]; then
                         # capture expected arguments
-                        bunt_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
+                        g4b_expected_args_tmp=$(mktemp 2>/dev/null || mktemp -t tmp)
                         IFS_bkup=$IFS
                         IFS=$'\n'
                         for arg in "${@:8}"; do
-                            echo $arg >> "$bunt_expected_args_tmp"
+                            echo $arg >> "$g4b_expected_args_tmp"
                         done
                         IFS=$IFS_bkup
                         IFS=% cmd+=( ${@:8} )
                     fi
                 fi
             fi
-            bunt_then=( "${cmd[@]}" )
-            bunt_expect_to_have_been_called
+            g4b_then=( "${cmd[@]}" )
+            g4b_expect_to_have_been_called
 
         elif [ "$1 $2 $3" == "output should match" ]; then
             if [ $# -gt 3 ]; then
-                bunt_expect_output_to_match 0 "${@:4}"
+                g4b_expect_output_to_match 0 "${@:4}"
             else
-                bunt_expect_output_to_match 0
+                g4b_expect_output_to_match 0
             fi
 
         elif [ "$1 $2 $3 $4" == "output should not match" ]; then
             if [ $# -gt 4 ]; then
-                bunt_expect_output_to_match 1 "${@:5}"
+                g4b_expect_output_to_match 1 "${@:5}"
             else
-                bunt_expect_output_to_match 1
+                g4b_expect_output_to_match 1
             fi
 
         fi
 
-        bunt_teardown
+        g4b_teardown
     fi
 }
 
-bunt_expect_to_exit_with() {
+g4b_expect_to_exit_with() {
     local code
     local cmd
     local msg
@@ -311,7 +311,7 @@ bunt_expect_to_exit_with() {
 
     while (( "$#" )); do shift; done
 
-    IFS=% cmd=( "${bunt_when[@]}" )
+    IFS=% cmd=( "${g4b_when[@]}" )
 
     if [ ${#cmd[@]} -gt 1 ]; then
         msg="when \`${cmd[0]}\` is called with $(printf "\`%s\` " "${cmd[@]:1}")\n       then it should exit with \`$code\`"
@@ -328,21 +328,21 @@ bunt_expect_to_exit_with() {
 
     unset -f exit
 
-    if [ -n "$BUNT_DEBUG" ]; then
+    if [ -n "$G4B_DEBUG" ]; then
         echo "expected exit code: $code"
         echo "actual exit code: $actual"
     fi
 
     if [ "$actual" -eq "$code" ]; then
-       bunt_pass=1
+       g4b_pass=1
     else
-       bunt_pass=0
+       g4b_pass=0
     fi
 
-    bunt_print_result "$msg"
+    g4b_print_result "$msg"
 }
 
-bunt_expect_output_to_match() {
+g4b_expect_output_to_match() {
     local invert
     local invert_text
     local expected_output
@@ -355,7 +355,7 @@ bunt_expect_output_to_match() {
 
     while (( "$#" )); do shift; done
 
-    IFS=% cmd=( "${bunt_when[@]}" )
+    IFS=% cmd=( "${g4b_when[@]}" )
 
     if [ ${#cmd[@]} -gt 1 ]; then
         msg="when \`${cmd[0]}\` is called with$(printf " \`%s\`" "${cmd[@]:1}")\n       then output should match \`$expected_output\`"
@@ -366,21 +366,21 @@ bunt_expect_output_to_match() {
     cmd_output=$(${cmd[@]})
 
     if $(echo "$cmd_output" | grep -q -e "$expected_output"); then
-        bunt_pass=1
+        g4b_pass=1
     else
-        bunt_pass=0
+        g4b_pass=0
     fi
 
     if [ "$invert" -eq 1 ]; then
-        if [ "$bunt_pass" -eq 0 ]; then
-            bunt_pass=1
+        if [ "$g4b_pass" -eq 0 ]; then
+            g4b_pass=1
         else
-            bunt_pass=0
+            g4b_pass=0
         fi
         invert_text=" not"
     fi
 
-    if [ "$bunt_pass" -eq 0 ]; then
+    if [ "$g4b_pass" -eq 0 ]; then
         if [ $(echo "$cmd_output" | grep -c '$') -gt 1 ]; then
             msg+="\n       expected output to${invert_text} match \`$expected_output\`. actual was:\n\n"
             msg+=$(echo "$cmd_output" | while read line; do echo "         $line"; done)
@@ -390,10 +390,10 @@ bunt_expect_output_to_match() {
         fi
     fi
 
-    bunt_print_result "$msg"
+    g4b_print_result "$msg"
 }
 
-bunt_create_spy() {
+g4b_create_spy() {
     local name=$1
     local output=$2
     local code=$3
@@ -425,7 +425,7 @@ EOD
     echo $tmp_calls
 }
 
-bunt_expect_to_have_been_called() {
+g4b_expect_to_have_been_called() {
     local subject
     local subject_cmd_name
     local expected_args
@@ -442,16 +442,16 @@ bunt_expect_to_have_been_called() {
     local tmp_args
     local tmp_calls
 
-    IFS=% subject=( "${bunt_then[@]}" )
+    IFS=% subject=( "${g4b_then[@]}" )
     subject_cmd_name="${subject[0]}"
 
-    IFS=% condition=( "${bunt_when[@]}" )
+    IFS=% condition=( "${g4b_when[@]}" )
     condition_cmd_name="${condition[0]}"
 
-    expected_args="${bunt_then[*]:1}"
+    expected_args="${g4b_then[*]:1}"
 
     if [ -n "${subject[*]:1}" ]; then
-        expected_args_text="$(cat "$bunt_expected_args_tmp" | while read line; do printf "\`%b\` " "$line"; done)"
+        expected_args_text="$(cat "$g4b_expected_args_tmp" | while read line; do printf "\`%b\` " "$line"; done)"
     fi
 
     msg="when \`${condition_cmd_name}\` is called"
@@ -466,11 +466,11 @@ bunt_expect_to_have_been_called() {
         msg+=" with $expected_args_text"
     fi
 
-    if [ "$bunt_specific_call_count" = 1 ]; then
-        if [ "${bunt_expected_call_count}" -eq 1 ]; then
-            msg+=" ${bunt_expected_call_count} time"
+    if [ "$g4b_specific_call_count" = 1 ]; then
+        if [ "${g4b_expected_call_count}" -eq 1 ]; then
+            msg+=" ${g4b_expected_call_count} time"
         else
-            msg+=" ${bunt_expected_call_count} times"
+            msg+=" ${g4b_expected_call_count} times"
         fi
     fi
 
@@ -480,12 +480,12 @@ bunt_expect_to_have_been_called() {
 
     # backup original subject, if function
     if [ "$(type -t "${subject_cmd_name}")" == "function" ]; then
-        eval "$(echo "bunt_bkup_${subject_cmd_name}()" && declare -f "${subject_cmd_name}" | tail -n +2)"
+        eval "$(echo "g4b_bkup_${subject_cmd_name}()" && declare -f "${subject_cmd_name}" | tail -n +2)"
         unset -f "${subject_cmd_name}"
     fi
 
     # replace with spy
-    IFS=$'\n' tmp_files=( $(bunt_create_spy "$subject_cmd_name" "$subject_output" "$subject_code") )
+    IFS=$'\n' tmp_files=( $(g4b_create_spy "$subject_cmd_name" "$subject_output" "$subject_code") )
     local tmp_dir="${tmp_files[0]}"
     local tmp_args="${tmp_files[1]}"
     local tmp_calls="${tmp_files[2]}"
@@ -502,7 +502,7 @@ bunt_expect_to_have_been_called() {
     IFS=% condition_script=( "source" "$condition_script_name" "${condition[@]:1}" )
 
     alias exit='return';
-    if [ -n "$BUNT_DEBUG" ]; then
+    if [ -n "$G4B_DEBUG" ]; then
         echo "subject script: ${tmp_dir}/${subject_cmd_name}"
         echo "condition script: ${condition_script[@]}"
         "${condition_script[@]}"
@@ -512,47 +512,47 @@ bunt_expect_to_have_been_called() {
     unalias exit
 
     # restore original subject, if function
-    if [ "$(type -t "bunt_bkup_${subject_cmd_name}")" == "function" ]; then
-        eval "$(echo "${subject_cmd_name}()" && declare -f "bunt_bkup_${subject_cmd_name}" | tail -n +2)"
-        unset -f "bunt_bkup_${subject_cmd_name}"
+    if [ "$(type -t "g4b_bkup_${subject_cmd_name}")" == "function" ]; then
+        eval "$(echo "${subject_cmd_name}()" && declare -f "g4b_bkup_${subject_cmd_name}" | tail -n +2)"
+        unset -f "g4b_bkup_${subject_cmd_name}"
     fi
 
-    bunt_actual_call_count="$(cat "$tmp_calls")"
-    bunt_actual_call_count="${bunt_actual_call_count:-0}"
+    g4b_actual_call_count="$(cat "$tmp_calls")"
+    g4b_actual_call_count="${g4b_actual_call_count:-0}"
 
     # check arguments
     if [ -n "${subject[*]:1}" ]; then
-        for ((i=1;i<=${bunt_actual_call_count};i++)); do
-            bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-            bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-            if [ -z "$(diff "$bunt_expected_args_tmp" "${tmp_args}-$i")" ]; then
-                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_GREEN $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_GREEN $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-                bunt_pass=1
+        for ((i=1;i<=${g4b_actual_call_count};i++)); do
+            g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $G4B_RED $G4B_RESET $G4B_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+            g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $G4B_RED $G4B_RESET $G4B_YELLOW "$(cat "$g4b_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+            if [ -z "$(diff "$g4b_expected_args_tmp" "${tmp_args}-$i")" ]; then
+                g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $G4B_GREEN $G4B_RESET $G4B_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+                g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $G4B_GREEN $G4B_RESET $G4B_YELLOW "$(cat "$g4b_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+                g4b_pass=1
             else
-                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-                bunt_actual_vs_expected_msg="${bunt_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $BUNT_RED $BUNT_RESET $BUNT_YELLOW "$(cat "$bunt_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $BUNT_RESET)"
-                bunt_pass="${bunt_pass:-0}"
+                g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bActual arguments:%b %b%b%b\n" $G4B_RED $G4B_RESET $G4B_YELLOW "$(cat "${tmp_args}-$i" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+                g4b_actual_vs_expected_msg="${g4b_actual_vs_expected_msg}$(printf "\n%bExpected arguments:%b %b%b%b\n" $G4B_RED $G4B_RESET $G4B_YELLOW "$(cat "$g4b_expected_args_tmp" | while read line; do printf "%s " "$line"; done)" $G4B_RESET)"
+                g4b_pass="${g4b_pass:-0}"
             fi
         done
     fi
 
     # check call count
-    if [ "$bunt_expected_call_count" -ne 0 ] && [ "$bunt_actual_call_count" -eq 0 ]; then
-        bunt_pass=0
-    elif [ "$bunt_expected_call_count" -eq "$bunt_actual_call_count" ] || [ "$bunt_specific_call_count" = 0 ]; then
-        if [ "${bunt_pass:-1}" -eq 1 ]; then
-            bunt_pass=1
+    if [ "$g4b_expected_call_count" -ne 0 ] && [ "$g4b_actual_call_count" -eq 0 ]; then
+        g4b_pass=0
+    elif [ "$g4b_expected_call_count" -eq "$g4b_actual_call_count" ] || [ "$g4b_specific_call_count" = 0 ]; then
+        if [ "${g4b_pass:-1}" -eq 1 ]; then
+            g4b_pass=1
         else
-            bunt_pass=0
+            g4b_pass=0
         fi
     else
-        msg+="\n       expected ${bunt_expected_call_count} calls but saw ${bunt_actual_call_count}"
-        bunt_pass=0
+        msg+="\n       expected ${g4b_expected_call_count} calls but saw ${g4b_actual_call_count}"
+        g4b_pass=0
     fi
 
     # print result
-    bunt_print_result "$msg"
+    g4b_print_result "$msg"
 
 }
 
